@@ -485,9 +485,9 @@
                 setTimeout(() => {
                     showScreen(2);
                     resetScreen1(); // Clean up for next time
-                }, 3000);
+                }, 5000);
 
-            }, 3000);
+            }, 5000);
         }
 
         function resetScreen1() {
@@ -507,7 +507,7 @@
             setTimeout(() => {
                 // Open Modal
                 get('modal-id-data').classList.add('visible');
-            }, 3000);
+            }, 5000);
         }
 
         function confirmIdData() {
@@ -526,7 +526,7 @@
             // Auto-reset entire flow after delay
             setTimeout(() => {
                 resetFlow();
-            }, 4000); // 3s delay + 1s buffer
+            }, 6000); // 5s delay + 1s buffer
         }
 
         // SCREEN 3 LOGIC: Access Granted & Reset
