@@ -363,6 +363,35 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
+            /* Scale down container slightly more if needed */
+            max-width: 90%; 
+        }
+
+        /* Specific adjustments for Screen 3 compact mode */
+        #screen-3 .success-icon {
+            width: 80px;
+            height: 80px;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        #screen-3 h1 {
+            font-size: 2rem; /* Reduced from 2.5rem */
+            margin-bottom: 0.5rem;
+        }
+        
+        #screen-3 p.main-msg {
+             font-size: 1.2rem; /* Reduced "Ya puedes pasar" */
+        }
+
+        #screen-3 .reminders-list {
+            margin-top: 1.5rem;
+            padding: 1rem;
+        }
+
+        #screen-3 .reminders-list p {
+            font-size: 0.95rem; /* Reduced from 1.1rem */
+            margin-bottom: 0.25rem;
         }
     </style>
 </head>
@@ -485,7 +514,7 @@
             <div class="success-icon">✓</div>
             <h1>Acceso autorizado</h1>
             <p>Datos de la identificación validados con éxito.</p>
-            <p style="font-size: 1.5rem; font-weight: 600; color: #22c55e; margin-top: 0.5rem;">Ya puedes pasar.</p>
+            <p class="main-msg" style="font-weight: 600; color: #22c55e; margin-top: 0.5rem;">Ya puedes pasar.</p>
             
             <div class="reminders-list">
                 <p>• Respeta los límites de velocidad dentro del residencial.</p>
