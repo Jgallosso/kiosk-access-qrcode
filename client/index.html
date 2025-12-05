@@ -1,26 +1,545 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-
-    <meta property="og:title" content="Replit Design" />
-    <meta property="og:description" content="A website made with Replit Design" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://replit.com/public/images/opengraph.png" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@replit" />
-    <meta name="twitter:title" content="Replit Design" />
-    <meta name="twitter:description" content="A website made with Replit Design" />
-    <meta name="twitter:image" content="https://replit.com/public/images/opengraph.png" />
-
-    <link rel="icon" type="image/png" href="/favicon.png" />
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kiosko de Control de Acceso</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fira+Code:wght@300..700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&family=Oxanium:wght@200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Space+Grotesk:wght@300..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 
+           ANGULAR MIGRATION NOTE: 
+           Migrate these styles to 'styles.scss' or specific component styles.
+           Use Angular Material or PrimeNG for pre-built components if desired, 
+           but custom CSS like this gives full control for Kiosk mode.
+        */
+
+        /* RESET & BASE */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none; /* Kiosk mode: prevent selection */
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Dark blue-ish background */
+            color: #ffffff;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* No scrollbars for kiosk */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* LAYOUT UTILS */
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+            width: 100%;
+            max-width: 1024px; /* Target resolution optimization */
+            margin: 0 auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* ANGULAR MIGRATION: Use Angular Animations (@trigger, @transition) for these effects */
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* HEADER */
+        header {
+            width: 100%;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.95);
+            z-index: 10;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .logo-placeholder {
+            width: 60px;
+            height: 60px;
+            background: #3b82f6;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .residencial-name {
+            font-size: 1rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        /* TYPOGRAPHY */
+        h1 {
+            font-size: 2.5rem; /* ~40px */
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+            color: #f8fafc;
+        }
+
+        h2 {
+            font-size: 1.5rem; /* ~24px */
+            font-weight: 400;
+            text-align: center;
+            color: #cbd5e1;
+            margin-bottom: 3rem;
+            max-width: 80%;
+        }
+
+        p {
+            font-size: 1.25rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+
+        /* BUTTONS */
+        .btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 1.25rem 3rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+            border-radius: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+            background-color: #2563eb;
+        }
+
+        /* SPINNER */
+        .spinner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 64px;
+            height: 64px;
+            border: 6px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* SUCCESS STATE */
+        .success-icon {
+            font-size: 5rem;
+            color: #22c55e;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 120px;
+            height: 120px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 50%;
+        }
+
+        .welcome-card {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            border: 1px solid #334155;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .welcome-card p {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-text {
+            color: #3b82f6;
+            font-weight: 700;
+        }
+
+        /* MODAL */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            width: 70%;
+            max-width: 800px;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            border: 1px solid #334155;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: left;
+        }
+
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+
+        .id-data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 2rem 0;
+            background: #0f172a;
+            padding: 1.5rem;
+            border-radius: 1rem;
+        }
+
+        .data-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .data-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .data-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        /* REMINDERS LIST */
+        .reminders-list {
+            text-align: left;
+            background: rgba(59, 130, 246, 0.1);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-top: 2rem;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .reminders-list p {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            color: #bfdbfe;
+        }
+
+        .reminders-list p:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Utilities for Screen 3 alignment */
+        .screen-3-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 
+        ANGULAR MIGRATION: 
+        This header should be a shared Component (e.g., <app-header>) 
+        included in your main Layout or AppComponent.
+    -->
+    <header>
+        <div class="logo-placeholder">LOGO</div>
+        <div class="residencial-name">Residencial Demo</div>
+    </header>
+
+    <!-- 
+        ANGULAR MIGRATION:
+        These sections (screen-1, screen-2, screen-3) should be separate Page Components
+        managed by the Angular Router (e.g., /welcome, /scan-id, /success).
+        Alternatively, use *ngIf or @switch to control visibility within a single KioskFlowComponent.
+    -->
+
+    <!-- PANTALLA 1: BIENVENIDA + QR -->
+    <section id="screen-1" class="container fade-in">
+        <!-- Estado Inicial -->
+        <div id="s1-initial" class="container">
+            <h1>Coloca tu código QR en el lector</h1>
+            <h2>El sistema lo detectará automáticamente.</h2>
+            <button class="btn" onclick="startQrSimulation()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="10" x="7" y="7" rx="2"/><path d="M7 17h.01"/><path d="M17 7h.01"/><path d="M7 7h.01"/><path d="M17 17h.01"/></svg>
+                Simular lectura de QR
+            </button>
+        </div>
+
+        <!-- Estado Validando -->
+        <div id="s1-validating" class="container hidden">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+                <h2>Validando en el sistema...</h2>
+            </div>
+        </div>
+
+        <!-- Estado Éxito QR -->
+        <div id="s1-success" class="container hidden">
+            <div class="welcome-card fade-in">
+                <div style="display: flex; justify-content: center;">
+                    <div class="success-icon" style="width: 80px; height: 80px; font-size: 3rem; margin-bottom: 1rem;">✓</div>
+                </div>
+                <h1 style="font-size: 2rem; margin-bottom: 1.5rem;">¡Qué tal, Erick!</h1>
+                <p>Tu código QR es de acceso único.</p>
+                <p class="highlight-text">Válido del 05 de dic al 06 de dic.</p>
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #334155;">
+                    <p style="font-size: 1rem; color: #94a3b8;">Ahora vamos a validar tu identificación (INE o licencia).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PANTALLA 2: CAPTURA INE -->
+    <section id="screen-2" class="container hidden">
+        <!-- Estado Inicial -->
+        <div id="s2-initial" class="container fade-in">
+            <h1>Coloca tu identificación en el módulo correspondiente</h1>
+            <h2>Asegúrate de que la INE o licencia esté bien alineada.</h2>
+            <button class="btn" onclick="startIdCapture()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="6" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/></svg>
+                Capturar identificación
+            </button>
+        </div>
+
+        <!-- Estado Procesando -->
+        <div id="s2-processing" class="container hidden">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+                <h2>Leyendo y validando identificación...</h2>
+            </div>
+        </div>
+    </section>
+
+    <!-- MODAL DE CONFIRMACIÓN DE DATOS -->
+    <!-- ANGULAR MIGRATION: Make this a shared <app-modal> component or use a Dialog Service -->
+    <div id="modal-id-data" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="text-align: left; margin-bottom: 1rem; color: #f8fafc;">Datos de identificación detectados</h2>
+            <div class="id-data-grid">
+                <div class="data-field">
+                    <span class="data-label">Nombre completo</span>
+                    <!-- ANGULAR MIGRATION: Bind with {{ idData.name }} -->
+                    <span class="data-value">Erick Demo Pérez</span>
+                </div>
+                <div class="data-field">
+                    <span class="data-label">Fecha de nacimiento</span>
+                    <span class="data-value">15/08/1990</span>
+                </div>
+                <div class="data-field">
+                    <span class="data-label">Sexo</span>
+                    <span class="data-value">Masculino</span>
+                </div>
+                <div class="data-field">
+                    <span class="data-label">CURP</span>
+                    <span class="data-value">DEPE900815HDFRRL09</span>
+                </div>
+                <div class="data-field" style="grid-column: span 2;">
+                    <span class="data-label">Dirección</span>
+                    <span class="data-value">Calle Ficticia 123, Colonia Centro, Ciudad Demo</span>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn" onclick="confirmIdData()">Confirmar y continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA 3: ACCESO AUTORIZADO -->
+    <section id="screen-3" class="container hidden">
+        <div class="screen-3-content fade-in">
+            <div class="success-icon">✓</div>
+            <h1>Acceso autorizado</h1>
+            <p>Datos de la identificación validados con éxito.</p>
+            <p style="font-size: 1.5rem; font-weight: 600; color: #22c55e; margin-top: 0.5rem;">Ya puedes pasar.</p>
+            
+            <div class="reminders-list">
+                <p>• Respeta los límites de velocidad dentro del residencial.</p>
+                <p>• Respeta el reglamento y las indicaciones del personal de seguridad.</p>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        /*
+           ANGULAR MIGRATION:
+           Move this state management to a Service (e.g., KioskFlowService) using Signals or RxJS BehaviorSubjects.
+           
+           Example:
+           export class KioskFlowService {
+             currentScreen = signal(1);
+             userData = signal(null);
+             
+             startFlow() { ... }
+           }
+        */
+
+        // STATE MACHINE & UTILS
+        const state = {
+            currentScreen: 1
+        };
+
+        // DOM Elements Helpers
+        const get = (id) => document.getElementById(id);
+        
+        const screens = {
+            1: get('screen-1'),
+            2: get('screen-2'),
+            3: get('screen-3')
+        };
+
+        // Navigation Helper
+        function showScreen(screenNumber) {
+            // Hide all screens
+            Object.values(screens).forEach(el => el.classList.add('hidden'));
+            
+            // Show requested screen
+            screens[screenNumber].classList.remove('hidden');
+            screens[screenNumber].classList.add('fade-in');
+            
+            state.currentScreen = screenNumber;
+        }
+
+        // SCREEN 1 LOGIC: Welcome + QR
+        function startQrSimulation() {
+            // Transition to validating state
+            get('s1-initial').classList.add('hidden');
+            get('s1-validating').classList.remove('hidden');
+            get('s1-validating').classList.add('fade-in');
+
+            // Simulate API call / Processing time
+            // ANGULAR MIGRATION: Replace setTimeout with HttpClient observable + delay/timer
+            setTimeout(() => {
+                // Show success state
+                get('s1-validating').classList.add('hidden');
+                get('s1-success').classList.remove('hidden');
+                get('s1-success').classList.add('fade-in');
+
+                // Auto transition to Screen 2
+                setTimeout(() => {
+                    showScreen(2);
+                    resetScreen1(); // Clean up for next time
+                }, 3000);
+
+            }, 3000);
+        }
+
+        function resetScreen1() {
+            get('s1-initial').classList.remove('hidden');
+            get('s1-validating').classList.add('hidden');
+            get('s1-success').classList.add('hidden');
+        }
+
+        // SCREEN 2 LOGIC: ID Capture
+        function startIdCapture() {
+            // Show processing state
+            get('s2-initial').classList.add('hidden');
+            get('s2-processing').classList.remove('hidden');
+            get('s2-processing').classList.add('fade-in');
+
+            // Simulate processing delay
+            setTimeout(() => {
+                // Open Modal
+                get('modal-id-data').classList.add('visible');
+            }, 3000);
+        }
+
+        function confirmIdData() {
+            // Close Modal
+            get('modal-id-data').classList.remove('visible');
+            
+            // Go to Screen 3
+            showScreen(3);
+            
+            // Reset Screen 2 state for next time
+            setTimeout(() => {
+                get('s2-initial').classList.remove('hidden');
+                get('s2-processing').classList.add('hidden');
+            }, 500);
+
+            // Auto-reset entire flow after delay
+            setTimeout(() => {
+                resetFlow();
+            }, 4000); // 3s delay + 1s buffer
+        }
+
+        // SCREEN 3 LOGIC: Access Granted & Reset
+        function resetFlow() {
+            // Fade out effect?
+            // Just hard reset to Screen 1
+            showScreen(1);
+        }
+
+        // Initialize
+        console.log('Kiosk System Initialized');
+        showScreen(1);
+
+    </script>
+</body>
 </html>
