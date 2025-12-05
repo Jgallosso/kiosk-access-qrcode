@@ -1,0 +1,55 @@
+Quiero que revises el código de mi proyecto actual (index.html / estilos CSS) y ARREGLES el problema de la MODAL que se desborda en la pantalla.
+
+Objetivo:
+- La modal debe verse SIEMPRE completa en una pantalla de kiosko de 7" en horizontal (aprox. 1024x600).
+- No quiero que la página entera tenga scroll, solamente la modal si el contenido es muy largo.
+- La modal debe quedar centrada (vertical y horizontalmente) y responsiva.
+
+Instrucciones concretas de CSS (aplícalas a las clases que ya tengas para la modal; si usas otros nombres, adapta los selectores):
+
+1. El overlay de la modal debe ser de pantalla completa:
+   - `position: fixed;`
+   - `inset: 0;`
+   - `display: flex;`
+   - `align-items: center;`
+   - `justify-content: center;`
+   - `background: rgba(0, 0, 0, 0.4);`
+   - `z-index: 1000;`
+
+2. El contenedor principal de la modal debe:
+   - Tener un ancho máximo: `max-width: 90vw;`
+   - Tener un alto máximo: `max-height: 80vh;`
+   - Usar `box-sizing: border-box;`
+   - Tener `padding` razonable (ej. 16–24px).
+   - Tener bordes redondeados y sombra como ya tenías.
+   - Usar `display: flex;` y `flex-direction: column;` para acomodar el contenido.
+
+3. El cuerpo de la modal donde van los datos de la INE debe:
+   - Usar `overflow-y: auto;`
+   - Tener `max-height: 100%;`
+   - De esta forma, si el texto es muy largo, SOLO dentro de la modal aparecerá un pequeño scroll, pero NUNCA se desbordará fuera de la pantalla.
+
+4. Asegúrate de que el botón de `Confirmar y continuar` NUNCA quede fuera de la pantalla:
+   - Ponlo en un contenedor de acciones al final de la modal.
+   - Usa `margin-top: 16px;` y haz que este contenedor no haga scroll, sólo el cuerpo de texto.
+   - Si es necesario, usa una estructura tipo:
+     - `.modal-content { display: flex; flex-direction: column; }`
+     - `.modal-body { flex: 1; overflow-y: auto; }`
+     - `.modal-actions { margin-top: 16px; }`
+
+5. Agrega un media query para pantallas con poca altura, por ejemplo:
+   ```css
+   @media (max-height: 650px) {
+     .modal-content {
+       max-height: 80vh;
+       padding: 16px;
+     }
+     .modal-title {
+       font-size: 20px;
+     }
+     .modal-body p,
+     .modal-body li,
+     .modal-body span {
+       font-size: 14px;
+     }
+   }

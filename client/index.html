@@ -206,16 +206,13 @@
         /* MODAL */
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(5px);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 50;
+            z-index: 1000;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease;
@@ -228,29 +225,60 @@
 
         .modal-content {
             background: #1e293b;
-            width: 70%;
+            width: 90vw;
             max-width: 800px;
-            padding: 2.5rem;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
             border-radius: 1.5rem;
             border: 1px solid #334155;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             transform: scale(0.95);
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             text-align: left;
+            box-sizing: border-box;
         }
 
         .modal-overlay.visible .modal-content {
             transform: scale(1);
         }
 
+        .modal-title {
+            text-align: left; 
+            margin-bottom: 1rem; 
+            color: #f8fafc;
+            flex-shrink: 0;
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            /* Custom Scrollbar for Kiosk */
+            scrollbar-width: thin;
+            scrollbar-color: #48b8e9 rgba(15, 23, 42, 0.5);
+        }
+
+        .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+        .modal-body::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+            background-color: #48b8e9;
+            border-radius: 4px;
+        }
+
         .id-data-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
-            margin: 2rem 0;
             background: #0f172a;
             padding: 1.5rem;
             border-radius: 1rem;
+            margin: 0; /* Remove default margin */
         }
 
         .data-field {
@@ -270,6 +298,39 @@
             font-size: 1.25rem;
             font-weight: 600;
             color: #f1f5f9;
+        }
+
+        .modal-actions {
+            margin-top: 16px;
+            display: flex; 
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }
+
+        /* MEDIA QUERY FOR COMPACT SCREENS (KIOSK) */
+        @media (max-height: 650px) {
+            .modal-content {
+                max-height: 85vh;
+                padding: 16px;
+            }
+            .modal-title {
+                font-size: 1.25rem; /* 20px */
+                margin-bottom: 0.75rem;
+            }
+            .id-data-grid {
+                padding: 1rem;
+                gap: 1rem;
+            }
+            .data-label {
+                font-size: 0.75rem; /* 12px */
+            }
+            .data-value {
+                font-size: 1rem; /* 16px */
+            }
+            .btn {
+                padding: 0.75rem 2rem;
+                font-size: 1.25rem;
+            }
         }
 
         /* REMINDERS LIST */
@@ -380,31 +441,35 @@
     <!-- ANGULAR MIGRATION: Make this a shared <app-modal> component or use a Dialog Service -->
     <div id="modal-id-data" class="modal-overlay">
         <div class="modal-content">
-            <h2 style="text-align: left; margin-bottom: 1rem; color: #f8fafc;">Datos de identificación detectados</h2>
-            <div class="id-data-grid">
-                <div class="data-field">
-                    <span class="data-label">Nombre completo</span>
-                    <!-- ANGULAR MIGRATION: Bind with {{ idData.name }} -->
-                    <span class="data-value">Erick Demo Pérez</span>
-                </div>
-                <div class="data-field">
-                    <span class="data-label">Fecha de nacimiento</span>
-                    <span class="data-value">15/08/1990</span>
-                </div>
-                <div class="data-field">
-                    <span class="data-label">Sexo</span>
-                    <span class="data-value">Masculino</span>
-                </div>
-                <div class="data-field">
-                    <span class="data-label">CURP</span>
-                    <span class="data-value">DEPE900815HDFRRL09</span>
-                </div>
-                <div class="data-field" style="grid-column: span 2;">
-                    <span class="data-label">Dirección</span>
-                    <span class="data-value">Calle Ficticia 123, Colonia Centro, Ciudad Demo</span>
+            <h2 class="modal-title">Datos de identificación detectados</h2>
+            
+            <div class="modal-body">
+                <div class="id-data-grid">
+                    <div class="data-field">
+                        <span class="data-label">Nombre completo</span>
+                        <!-- ANGULAR MIGRATION: Bind with {{ idData.name }} -->
+                        <span class="data-value">Erick Demo Pérez</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label">Fecha de nacimiento</span>
+                        <span class="data-value">15/08/1990</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label">Sexo</span>
+                        <span class="data-value">Masculino</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label">CURP</span>
+                        <span class="data-value">DEPE900815HDFRRL09</span>
+                    </div>
+                    <div class="data-field" style="grid-column: span 2;">
+                        <span class="data-label">Dirección</span>
+                        <span class="data-value">Calle Ficticia 123, Colonia Centro, Ciudad Demo</span>
+                    </div>
                 </div>
             </div>
-            <div style="display: flex; justify-content: flex-end;">
+
+            <div class="modal-actions">
                 <button class="btn" onclick="confirmIdData()">Confirmar y continuar</button>
             </div>
         </div>
