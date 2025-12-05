@@ -1,0 +1,133 @@
+Eres un experto en UX/UI y desarrollo frontend con HTML, CSS y JavaScript vanilla.
+
+Quiero que construyas un prototipo completo de una PANTALLA DE KIOSKO INTERACTIVO para control de acceso, pensado para después migrarse a Angular v19 en modo standalone. Por ahora, TODO debe estar en un solo archivo `index.html` (HTML + CSS + JS), sin dependencias externas.
+
+### Contexto del dispositivo
+
+- Pantalla táctil de 7 pulgadas en orientación horizontal (piensa en algo tipo 1024x600).
+- Aplicación en modo kiosko: sin scrollbar, sin necesidad de teclado o mouse.
+- Todo el contenido debe verse sin hacer scroll.
+- Uso intensivo de tipografía grande, botones grandes y elementos claros para usarse a una distancia de 50–70 cm.
+
+### Requerimientos generales de diseño
+
+1. Estilo moderno, minimalista, con buena jerarquía visual.
+2. Usa un esquema de colores tipo:
+   - Fondo principal oscuro o ligeramente azulado.
+   - Tarjetas y paneles con fondo más claro.
+   - Palomitas de éxito en verde y mensajes de alerta en ámbar (si los requieres).
+3. Tipografía legible y grande:
+   - Títulos: mínimo 32px.
+   - Mensajes principales: 24px.
+   - Texto secundario: 18–20px.
+4. Todos los textos deben estar en ESPAÑOL.
+5. No uses frameworks ni librerías externas (ni Bootstrap, ni Tailwind). Sólo CSS puro y JavaScript puro.
+
+### Estructura de la interfaz
+
+Toda la app es una especie de “máquina de estados” con 3 pantallas principales:
+
+- Pantalla 1: Bienvenida + lectura de código QR.
+- Pantalla 2: Captura y lectura de identificación (INE o licencia).
+- Pantalla 3: Mensaje final de acceso autorizado.
+
+Quiero que manejes estas pantallas con JavaScript cambiando clases/estados, NO recargando la página.
+
+#### Cabecera fija
+
+En la parte superior de TODAS las pantallas pon:
+
+- Un área centrada para el logotipo del residencial (usa un placeholder, por ejemplo un círculo o cuadrado con texto “LOGO”).
+- Debajo, un texto pequeño con el nombre del residencial, por ejemplo: `Residencial Demo`.
+
+#### Pantalla 1 – Bienvenida + QR
+
+Contenido central:
+
+1. **Estado inicial**:
+   - Título grande: `Coloca tu código QR en el lector`
+   - Subtítulo: `El sistema lo detectará automáticamente.`
+   - Debajo, muestra un botón grande tipo demo con el texto: `Simular lectura de QR`.
+     - Este botón sirve para disparar el flujo en modo DEMO.
+
+2. **Al hacer clic en “Simular lectura de QR”**:
+   - Oculta el botón.
+   - Muestra un spinner animado (con CSS) y el texto: `Validando en el sistema...`
+   - Después de un delay de 3 segundos (usa `setTimeout`), oculta el spinner y muestra:
+     - Una palomita verde grande (puede ser un ícono hecho con CSS o un símbolo ✓ grande).
+     - Un bloque de texto con:
+       - `¡Qué tal, Erick!`
+       - `Tu código QR es de acceso único.`
+       - `Válido del 05 de dic al 06 de dic.`
+       - `Ahora vamos a validar tu identificación (INE o licencia).`
+   - 3 segundos después de mostrar este mensaje (otro `setTimeout`), cambia automáticamente a la Pantalla 2.
+
+#### Pantalla 2 – Captura de identificación
+
+Contenido central:
+
+1. Título: `Coloca tu identificación en el módulo correspondiente`
+2. Subtítulo: `Asegúrate de que la INE o licencia esté bien alineada.`
+3. Botón grande centrado con el texto: `Capturar identificación`.
+
+Al hacer clic en el botón:
+
+- Muestra un estado de “procesando”:
+  - Spinner.
+  - Texto: `Leyendo y validando identificación...`
+- Después de 3 segundos:
+  - Abre una MODAL centrada (ocupa aprox. 60–70% del ancho y alto de la pantalla, con fondo traslúcido detrás).
+  - Dentro de la modal, muestra una tarjeta con datos simulados de la INE:
+    - Título: `Datos de identificación detectados`
+    - Campos con etiquetas claras:
+      - `Nombre completo: Erick Demo Pérez`
+      - `Fecha de nacimiento: 15/08/1990`
+      - `Dirección: Calle Ficticia 123, Colonia Centro, Ciudad Demo`
+      - `Sexo: Masculino`
+      - `CURP: DEPE900815HDFRRL09`
+  - Debajo de los datos pon un botón grande: `Confirmar y continuar`.
+
+Al pulsar “Confirmar y continuar”:
+
+- Cierra la modal.
+- Cambia a la Pantalla 3.
+
+#### Pantalla 3 – Mensaje de acceso autorizado
+
+Contenido central:
+
+1. Ícono de palomita verde grande (de éxito).
+2. Título grande: `Acceso autorizado`
+3. Mensaje principal:
+   - `Datos de la identificación validados con éxito.`
+   - `Ya puedes pasar.`
+4. Debajo, una sección de recordatorios, por ejemplo:
+   - `• Respeta los límites de velocidad dentro del residencial.`
+   - `• Respeta el reglamento y las indicaciones del personal de seguridad.`
+
+Al entrar a esta pantalla, después de 3 segundos:
+
+- Regresa automáticamente al estado inicial de la Pantalla 1:
+  - Sin spinner.
+  - Sin mensajes de éxito.
+  - Con el botón `Simular lectura de QR` visible nuevamente.
+  - Poniendo todo listo para el siguiente visitante.
+
+### Detalles de implementación
+
+- Usa `display: flex` y/o `grid` para centrar contenido vertical y horizontalmente, y para dividir cabecera / contenido principal.
+- Evita absolutamente el scroll. Si es necesario, ajusta tamaños de fuentes y márgenes para que todo quepa cómodamente.
+- Añade pequeñas transiciones o animaciones (por ejemplo, `opacity` o `transform`) para que los cambios de pantalla y aparición de modales se vean suaves.
+- Organiza el CSS con clases claras (por ejemplo: `.pantalla`, `.pantalla-activa`, `.spinner`, `.btn-primario`, `.modal`, `.modal-visible`, etc.).
+- En JavaScript, implementa una especie de “state machine” muy sencilla utilizando una variable `estadoActual` que pueda tomar valores como `"pantalla1"`, `"pantalla2"`, `"pantalla3"`, y funciones como `mostrarPantalla(1)`, `mostrarPantalla(2)`, etc.
+- Comenta el código de forma breve explicando lo más importante para poder migrarlo después a Angular (por ejemplo: qué parte sería un componente, qué parte sería un servicio de estado, etc.).
+
+### Entrega
+
+Devuélveme un solo archivo `index.html` completo con:
+
+- Estructura HTML.
+- Estilos CSS dentro de `<style>`.
+- Lógica JavaScript dentro de `<script>` al final del body.
+
+El resultado debe ser un prototipo funcional listo para usarse como demo en una pantalla táctil de kiosko.
