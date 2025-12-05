@@ -27,15 +27,12 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 1rem;
   position: relative;
   width: 100%;
   max-width: 1024px; /* Target resolution optimization */
   margin: 0 auto;
-  /* Fix for overlap and size: Scale down content and push it down */
-  transform: scale(0.85);
-  transform-origin: center center;
-  margin-top: 40px; /* Push down from absolute header */
+  overflow: hidden;
 }
 
 .hidden {
@@ -54,35 +51,33 @@ body {
 /* HEADER */
 header {
   width: 100%;
-  padding: 1.5rem;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   background: rgba(7, 14, 39, 0.95); /* Brand Primary Dark with opacity */
   z-index: 10;
-  position: absolute;
-  top: 0;
-  left: 0;
+  flex-shrink: 0;
 }
 
 /* TYPOGRAPHY */
 h1 {
-  font-size: 2.5rem; /* ~40px */
+  font-size: 1.75rem; /* ~28px - reduced for kiosk */
   font-weight: 700;
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   line-height: 1.2;
   color: #f8fafc;
 }
 
 h2 {
-  font-size: 1.5rem; /* ~24px */
+  font-size: 1.1rem; /* ~18px - reduced for kiosk */
   font-weight: 400;
   text-align: center;
   color: #cbd5e1;
-  margin-bottom: 3rem;
-  max-width: 80%;
+  margin-bottom: 1.5rem;
+  max-width: 90%;
 }
 
 p {
@@ -96,16 +91,16 @@ p {
   background-color: #48b8e9; /* Brand Secondary */
   color: #0f172a; /* Dark text for contrast */
   border: none;
-  padding: 1.25rem 3rem;
-  font-size: 1.5rem;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   display: inline-flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .btn:active {
