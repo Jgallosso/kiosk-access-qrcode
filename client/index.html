@@ -47,6 +47,10 @@
             width: 100%;
             max-width: 1024px; /* Target resolution optimization */
             margin: 0 auto;
+            /* Fix for overlap and size: Scale down content and push it down */
+            transform: scale(0.85);
+            transform-origin: center center;
+            margin-top: 40px; /* Push down from absolute header */
         }
 
         .hidden {
