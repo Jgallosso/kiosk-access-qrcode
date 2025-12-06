@@ -15,11 +15,10 @@ interface AnprResponse {
 }
 
 export async function processPlateWithAnpr(imageBase64: string): Promise<AnprResponse> {
-  const appKey = process.env.ANPR_APP_KEY;
-  const appSecret = process.env.ANPR_APP_SECRET;
+  const apiToken = process.env.ANPR_API_TOKEN;
   
-  if (!appKey || !appSecret) {
-    console.log('[ANPR API] Modo mock - ANPR_APP_KEY o ANPR_APP_SECRET no configurados');
+  if (!apiToken) {
+    console.log('[ANPR API] Modo mock - ANPR_API_TOKEN no configurado');
     return mockAnprResponse();
   }
 
@@ -33,7 +32,7 @@ export async function processPlateWithAnpr(imageBase64: string): Promise<AnprRes
     const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
       method: 'POST',
       headers: {
-        'Authorization': `Token ${appKey}`,
+        'Authorization': `Token ${apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
