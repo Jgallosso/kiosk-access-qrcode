@@ -50,7 +50,13 @@ export async function processWithOcrSpace(base64Image: string): Promise<{ succes
 
     const data: OcrSpaceResponse = await response.json();
 
+    console.log('[OCR.space] Respuesta cruda de la API:');
+    console.log(JSON.stringify(data, null, 2));
+
     if (data.IsErroredOnProcessing || !data.ParsedResults?.[0]?.ParsedText) {
+      console.log('[OCR.space] Error - IsErroredOnProcessing:', data.IsErroredOnProcessing);
+      console.log('[OCR.space] Error - ParsedResults:', JSON.stringify(data.ParsedResults, null, 2));
+      console.log('[OCR.space] Error - ErrorMessage:', data.ErrorMessage);
       return { 
         success: false, 
         message: data.ErrorMessage?.join(', ') || 'No se pudo extraer texto de la imagen' 
