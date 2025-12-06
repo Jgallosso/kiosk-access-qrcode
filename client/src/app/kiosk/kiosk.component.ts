@@ -1,7 +1,7 @@
 import { Component, ElementRef, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import jsQR from 'jsqr';
-import { AccessService, VisitorData, IneData } from '../services/access.service';
+import { AccessService, VisitorData, IneData, CameraConfig } from '../services/access.service';
 
 type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentificacion' | 'capturandoIdentificacion' | 'leyendoIdentificacion' | 'identificacionMostrada' | 'accesoAutorizado' | 'error';
 
@@ -187,9 +187,41 @@ export class KioskComponent implements OnInit, OnDestroy {
   private stream: MediaStream | null = null;
   private ineStream: MediaStream | null = null;
   private animationFrameId: number | null = null;
+  private cameraConfig: CameraConfig | null = null;
+  private availableDevices: MediaDeviceInfo[] = [];
 
   ngOnInit(): void {
-    this.startCamera();
+    this.loadCameraConfig();
+  }
+
+  private async loadCameraConfig() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      this.availableDevices = devices.filter(d => d.kind === 'videoinput');
+      console.log('[Kiosk] Cámaras disponibles:', this.availableDevices.map(d => d.label));
+    } catch (e) {
+      console.error('[Kiosk] Error enumerando dispositivos:', e);
+    }
+
+    this.accessService.getCameraConfig().subscribe({
+      next: (config) => {
+        this.cameraConfig = config;
+        console.log('[Kiosk] Configuración de cámaras:', config);
+        this.startCamera();
+      },
+      error: (err) => {
+        console.error('[Kiosk] Error cargando config de cámaras:', err);
+        this.startCamera();
+      }
+    });
+  }
+
+  private findCameraByName(name: string): string | undefined {
+    if (!name) return undefined;
+    const device = this.availableDevices.find(d => 
+      d.label.toLowerCase().includes(name.toLowerCase())
+    );
+    return device?.deviceId;
   }
 
   ngOnDestroy(): void {
@@ -198,7 +230,17 @@ export class KioskComponent implements OnInit, OnDestroy {
 
   startCamera() {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      const qrCameraId = this.cameraConfig?.qrCamera ? this.findCameraByName(this.cameraConfig.qrCamera) : undefined;
+      
+      const constraints: MediaStreamConstraints = {
+        video: qrCameraId 
+          ? { deviceId: { exact: qrCameraId } }
+          : { facingMode: 'environment' }
+      };
+      
+      console.log('[Kiosk] Iniciando cámara QR con:', qrCameraId ? `deviceId: ${qrCameraId}` : 'facingMode: environment');
+      
+      navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           this.stream = stream;
           setTimeout(() => {
@@ -304,13 +346,15 @@ export class KioskComponent implements OnInit, OnDestroy {
 
   private startIneCamera() {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
-      })
+      const ineCameraId = this.cameraConfig?.ineCamera ? this.findCameraByName(this.cameraConfig.ineCamera) : undefined;
+      
+      const videoConstraints: MediaTrackConstraints = ineCameraId 
+        ? { deviceId: { exact: ineCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } };
+      
+      console.log('[Kiosk] Iniciando cámara INE con:', ineCameraId ? `deviceId: ${ineCameraId}` : 'facingMode: environment');
+      
+      navigator.mediaDevices.getUserMedia({ video: videoConstraints })
         .then(stream => {
           this.ineStream = stream;
           if (this.ineVideoElement) {

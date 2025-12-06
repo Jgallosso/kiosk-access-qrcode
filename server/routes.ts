@@ -159,6 +159,20 @@ export async function registerRoutes(
   });
 
   /**
+   * GET /api/config/cameras
+   * Devuelve la configuración de cámaras
+   */
+  app.get('/api/config/cameras', (_req: Request, res: Response) => {
+    res.status(200).json({
+      success: true,
+      data: {
+        qrCamera: process.env.CAMERA_QR || '',
+        ineCamera: process.env.CAMERA_INE || ''
+      }
+    });
+  });
+
+  /**
    * GET /api/health
    * Health check endpoint
    */

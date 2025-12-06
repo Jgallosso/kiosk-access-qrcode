@@ -50,6 +50,16 @@ export interface GateOpenResponse {
   errorCode?: string;
 }
 
+export interface CameraConfig {
+  qrCamera: string;
+  ineCamera: string;
+}
+
+export interface CameraConfigResponse {
+  success: boolean;
+  data: CameraConfig;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -87,6 +97,17 @@ export class AccessService {
   openGate(curp: string, gateId: string = 'GATE-MAIN'): Observable<GateOpenResponse> {
     return this.http.post<GateOpenResponse>(`${this.apiUrl}/open-gate`, { curp, gateId })
       .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Obtiene la configuración de cámaras
+   */
+  getCameraConfig(): Observable<CameraConfig> {
+    return this.http.get<CameraConfigResponse>('/api/config/cameras')
+      .pipe(
+        map(response => response.data),
         catchError(this.handleError)
       );
   }
