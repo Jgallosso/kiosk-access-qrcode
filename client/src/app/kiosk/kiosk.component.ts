@@ -195,25 +195,27 @@ export class KioskComponent implements OnInit, OnDestroy {
   }
 
   private async loadCameraConfig() {
+    this.accessService.getCameraConfig().subscribe({
+      next: async (config) => {
+        this.cameraConfig = config;
+        console.log('[Kiosk] Configuración de cámaras:', config);
+        await this.startCamera();
+      },
+      error: async (err) => {
+        console.error('[Kiosk] Error cargando config de cámaras:', err);
+        await this.startCamera();
+      }
+    });
+  }
+
+  private async enumerateCameras() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       this.availableDevices = devices.filter(d => d.kind === 'videoinput');
-      console.log('[Kiosk] Cámaras disponibles:', this.availableDevices.map(d => d.label));
+      console.log('[Kiosk] Cámaras disponibles:', this.availableDevices.map(d => ({ label: d.label, id: d.deviceId })));
     } catch (e) {
       console.error('[Kiosk] Error enumerando dispositivos:', e);
     }
-
-    this.accessService.getCameraConfig().subscribe({
-      next: (config) => {
-        this.cameraConfig = config;
-        console.log('[Kiosk] Configuración de cámaras:', config);
-        this.startCamera();
-      },
-      error: (err) => {
-        console.error('[Kiosk] Error cargando config de cámaras:', err);
-        this.startCamera();
-      }
-    });
   }
 
   private findCameraByName(name: string): string | undefined {
@@ -228,8 +230,18 @@ export class KioskComponent implements OnInit, OnDestroy {
     this.stopCamera();
   }
 
-  startCamera() {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  async startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+    try {
+      // Primero obtener permiso con cualquier cámara para poder enumerar
+      const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      tempStream.getTracks().forEach(t => t.stop());
+      
+      // Ahora enumerar cámaras (ya tenemos permisos, los labels estarán disponibles)
+      await this.enumerateCameras();
+      
+      // Buscar la cámara QR configurada
       const qrCameraId = this.cameraConfig?.qrCamera ? this.findCameraByName(this.cameraConfig.qrCamera) : undefined;
       
       const constraints: MediaStreamConstraints = {
@@ -240,22 +252,20 @@ export class KioskComponent implements OnInit, OnDestroy {
       
       console.log('[Kiosk] Iniciando cámara QR con:', qrCameraId ? `deviceId: ${qrCameraId}` : 'facingMode: environment');
       
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-          this.stream = stream;
-          setTimeout(() => {
-            if (this.videoElement) {
-                this.videoElement.nativeElement.srcObject = stream;
-                this.videoElement.nativeElement.setAttribute('playsinline', 'true');
-                this.videoElement.nativeElement.play();
-                this.scanning = true;
-                requestAnimationFrame(this.tick.bind(this));
-            }
-          }, 100);
-        })
-        .catch(err => {
-          console.error("Camera error:", err);
-        });
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.stream = stream;
+      
+      setTimeout(() => {
+        if (this.videoElement) {
+          this.videoElement.nativeElement.srcObject = stream;
+          this.videoElement.nativeElement.setAttribute('playsinline', 'true');
+          this.videoElement.nativeElement.play();
+          this.scanning = true;
+          requestAnimationFrame(this.tick.bind(this));
+        }
+      }, 100);
+    } catch (err) {
+      console.error("Camera error:", err);
     }
   }
 
@@ -344,8 +354,15 @@ export class KioskComponent implements OnInit, OnDestroy {
     }, 100);
   }
 
-  private startIneCamera() {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  private async startIneCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    
+    try {
+      // Si no tenemos la lista de cámaras, re-enumerar
+      if (this.availableDevices.length === 0 || !this.availableDevices[0].label) {
+        await this.enumerateCameras();
+      }
+      
       const ineCameraId = this.cameraConfig?.ineCamera ? this.findCameraByName(this.cameraConfig.ineCamera) : undefined;
       
       const videoConstraints: MediaTrackConstraints = ineCameraId 
@@ -354,22 +371,20 @@ export class KioskComponent implements OnInit, OnDestroy {
       
       console.log('[Kiosk] Iniciando cámara INE con:', ineCameraId ? `deviceId: ${ineCameraId}` : 'facingMode: environment');
       
-      navigator.mediaDevices.getUserMedia({ video: videoConstraints })
-        .then(stream => {
-          this.ineStream = stream;
-          if (this.ineVideoElement) {
-            this.ineVideoElement.nativeElement.srcObject = stream;
-            this.ineVideoElement.nativeElement.setAttribute('playsinline', 'true');
-            this.ineVideoElement.nativeElement.play();
-          }
-        })
-        .catch(err => {
-          console.error("INE Camera error:", err);
-          this.ngZone.run(() => {
-            this.errorMessage = 'Error al acceder a la cámara';
-            this.currentState = 'error';
-          });
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
+      this.ineStream = stream;
+      
+      if (this.ineVideoElement) {
+        this.ineVideoElement.nativeElement.srcObject = stream;
+        this.ineVideoElement.nativeElement.setAttribute('playsinline', 'true');
+        this.ineVideoElement.nativeElement.play();
+      }
+    } catch (err) {
+      console.error("INE Camera error:", err);
+      this.ngZone.run(() => {
+        this.errorMessage = 'Error al acceder a la cámara';
+        this.currentState = 'error';
+      });
     }
   }
 
