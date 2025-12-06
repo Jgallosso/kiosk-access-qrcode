@@ -140,6 +140,7 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
 })
 export class KioskComponent implements OnInit, OnDestroy {
   private readonly accessService = inject(AccessService);
+  private readonly ngZone = inject(NgZone);
   
   currentState: KioskState = 'qrIdle';
   visitorData: VisitorData | null = null;
@@ -229,22 +230,28 @@ export class KioskComponent implements OnInit, OnDestroy {
     
     this.accessService.validateQr(qrData).subscribe({
       next: (response) => {
-        if (response.success && response.data) {
-          this.visitorData = response.data;
-          this.currentState = 'qrValidado';
-          
-          setTimeout(() => {
-            this.currentState = 'esperandoIdentificacion';
-          }, 3000);
-        } else {
-          this.errorMessage = response.message || 'Código QR no válido';
-          this.currentState = 'error';
-        }
+        this.ngZone.run(() => {
+          if (response.success && response.data) {
+            this.visitorData = response.data;
+            this.currentState = 'qrValidado';
+            
+            setTimeout(() => {
+              this.ngZone.run(() => {
+                this.currentState = 'esperandoIdentificacion';
+              });
+            }, 3000);
+          } else {
+            this.errorMessage = response.message || 'Código QR no válido';
+            this.currentState = 'error';
+          }
+        });
       },
       error: (err) => {
-        console.error('Error validating QR:', err);
-        this.errorMessage = err.message || 'Error al validar código QR';
-        this.currentState = 'error';
+        this.ngZone.run(() => {
+          console.error('Error validating QR:', err);
+          this.errorMessage = err.message || 'Error al validar código QR';
+          this.currentState = 'error';
+        });
       }
     });
   }
@@ -285,21 +292,27 @@ export class KioskComponent implements OnInit, OnDestroy {
 
     this.accessService.openGate(this.ineData.curp, 'GATE-MAIN').subscribe({
       next: (response) => {
-        if (response.success) {
-          this.currentState = 'accesoAutorizado';
-          
-          setTimeout(() => {
-            this.resetFlow();
-          }, 7000);
-        } else {
-          this.errorMessage = response.message || 'Error al abrir puerta';
-          this.currentState = 'error';
-        }
+        this.ngZone.run(() => {
+          if (response.success) {
+            this.currentState = 'accesoAutorizado';
+            
+            setTimeout(() => {
+              this.ngZone.run(() => {
+                this.resetFlow();
+              });
+            }, 7000);
+          } else {
+            this.errorMessage = response.message || 'Error al abrir puerta';
+            this.currentState = 'error';
+          }
+        });
       },
       error: (err) => {
-        console.error('Error opening gate:', err);
-        this.errorMessage = err.message || 'Error al abrir puerta';
-        this.currentState = 'error';
+        this.ngZone.run(() => {
+          console.error('Error opening gate:', err);
+          this.errorMessage = err.message || 'Error al abrir puerta';
+          this.currentState = 'error';
+        });
       }
     });
   }
