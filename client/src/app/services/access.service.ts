@@ -60,6 +60,23 @@ export interface CameraConfigResponse {
   data: CameraConfig;
 }
 
+export interface PlateData {
+  plate: string;
+  confidence: number;
+  region?: string;
+  vehicleType?: string;
+  color?: string;
+}
+
+export interface AnprCaptureResponse {
+  success: boolean;
+  message: string;
+  data?: PlateData;
+  imageBase64?: string;
+  processingTimeMs?: number;
+  errorCode?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -110,6 +127,23 @@ export class AccessService {
         map(response => response.data),
         catchError(this.handleError)
       );
+  }
+
+  /**
+   * Captura y procesa placa vehicular desde cámara ANPR
+   */
+  captureAnpr(): Observable<AnprCaptureResponse> {
+    return this.http.post<AnprCaptureResponse>('/api/anpr/capture', {})
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * URL del stream ANPR
+   */
+  getAnprStreamUrl(): string {
+    return '/api/anpr/stream';
   }
 
   /**

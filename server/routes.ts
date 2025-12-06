@@ -4,6 +4,8 @@ import cors from "cors";
 import { qrService } from "./services/qr.service";
 import { ocrService } from "./services/ocr.service";
 import { gpioService } from "./services/gpio.service";
+import { cameraAnprService } from "./services/camera.anpr";
+import { processPlateWithAnpr } from "./services/api.anpr";
 
 interface ValidateQrRequest {
   uuid: string;
@@ -173,6 +175,92 @@ export async function registerRoutes(
   });
 
   /**
+   * GET /api/anpr/stream
+   * Stream MJPEG de la cámara ANPR
+   */
+  app.get('/api/anpr/stream', (req: Request, res: Response) => {
+    const { success, error } = cameraAnprService.startMjpegStream(res);
+    
+    if (!success) {
+      return res.status(500).json({
+        success: false,
+        message: error || 'Error al iniciar stream'
+      });
+    }
+
+    req.on('close', () => {
+      cameraAnprService.stopMjpegStream();
+    });
+  });
+
+  /**
+   * POST /api/anpr/capture
+   * Captura un frame de la cámara ANPR y lo procesa
+   */
+  app.post('/api/anpr/capture', async (_req: Request, res: Response) => {
+    try {
+      const startTime = Date.now();
+      
+      const captureResult = await cameraAnprService.captureFrame();
+      
+      if (!captureResult.success || !captureResult.imageBase64) {
+        return res.status(422).json({
+          success: false,
+          message: captureResult.message,
+          errorCode: 'CAPTURE_FAILED'
+        });
+      }
+
+      const anprResult = await processPlateWithAnpr(captureResult.imageBase64);
+      
+      const processingTimeMs = Date.now() - startTime;
+
+      if (anprResult.success && anprResult.data) {
+        return res.status(200).json({
+          success: true,
+          message: 'Placa detectada correctamente',
+          data: anprResult.data,
+          imageBase64: captureResult.imageBase64,
+          processingTimeMs
+        });
+      } else {
+        return res.status(422).json({
+          success: false,
+          message: anprResult.message,
+          imageBase64: captureResult.imageBase64,
+          processingTimeMs,
+          errorCode: 'PLATE_NOT_DETECTED'
+        });
+      }
+
+    } catch (error) {
+      console.error('[API] Error en anpr capture:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        errorCode: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
+  /**
+   * GET /api/anpr/test
+   * Prueba la conexión con la cámara ANPR
+   */
+  app.get('/api/anpr/test', async (_req: Request, res: Response) => {
+    try {
+      const result = await cameraAnprService.testConnection();
+      const statusCode = result.success ? 200 : 503;
+      return res.status(statusCode).json(result);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error al probar conexión'
+      });
+    }
+  });
+
+  /**
    * GET /api/health
    * Health check endpoint
    */
@@ -182,8 +270,9 @@ export async function registerRoutes(
       timestamp: new Date().toISOString(),
       services: {
         qr: 'active',
-        ocr: 'active (mock)',
-        gpio: 'active (mock)'
+        ocr: 'active',
+        gpio: 'active (mock)',
+        anpr: process.env.CAMERA_ANPR_RTSP_URL ? 'configured' : 'not configured'
       }
     });
   });

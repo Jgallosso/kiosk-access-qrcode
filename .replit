@@ -4,6 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["ffmpeg"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -16,7 +17,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 41825
+localPort = 46455
 externalPort = 3000
 
 [env]
@@ -51,3 +52,4 @@ mockupState = "FULLSTACK"
 [userenv.shared]
 CAMERA_QR = "USB2.0 HD UVC WebCam"
 CAMERA_INE = "USB2.0 HD UVC WebCam"
+CAMERA_ANPR_RTSP_URL = "rtsp://user:password@192.168.1.100:554/stream"

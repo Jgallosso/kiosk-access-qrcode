@@ -1,9 +1,9 @@
 import { Component, ElementRef, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import jsQR from 'jsqr';
-import { AccessService, VisitorData, IneData, CameraConfig } from '../services/access.service';
+import { AccessService, VisitorData, IneData, CameraConfig, PlateData } from '../services/access.service';
 
-type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentificacion' | 'capturandoIdentificacion' | 'leyendoIdentificacion' | 'identificacionMostrada' | 'accesoAutorizado' | 'error';
+type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentificacion' | 'capturandoIdentificacion' | 'leyendoIdentificacion' | 'identificacionMostrada' | 'capturandoPlaca' | 'leyendoPlaca' | 'placaMostrada' | 'accesoAutorizado' | 'error';
 
 @Component({
   selector: 'app-kiosk',
@@ -86,16 +86,22 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
         </div>
     </section>
 
-    <!-- PANTALLA 2: CAPTURA INE -->
-    <section id="screen-2" class="container" *ngIf="currentState === 'esperandoIdentificacion' || currentState === 'capturandoIdentificacion' || currentState === 'leyendoIdentificacion' || currentState === 'identificacionMostrada'">
-        <!-- Estado Inicial -->
+    <!-- PANTALLA 2: CAPTURA INE / PLACA -->
+    <section id="screen-2" class="container" *ngIf="currentState === 'esperandoIdentificacion' || currentState === 'capturandoIdentificacion' || currentState === 'leyendoIdentificacion' || currentState === 'identificacionMostrada' || currentState === 'capturandoPlaca' || currentState === 'leyendoPlaca' || currentState === 'placaMostrada'">
+        <!-- Estado Inicial - Selección de método -->
         <div id="s2-initial" class="container fade-in" *ngIf="currentState === 'esperandoIdentificacion'">
-            <h1>Coloca tu identificación en el módulo correspondiente</h1>
-            <h2>Asegúrate de que la INE o licencia esté bien alineada.</h2>
-            <button class="btn" (click)="startIdCapture()" data-testid="button-capture-id">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="6" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/></svg>
-                Capturar identificación
-            </button>
+            <h1>Selecciona el tipo de validación</h1>
+            <h2>Puedes validar con tu identificación o con la placa de tu vehículo.</h2>
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <button class="btn" (click)="startIdCapture()" data-testid="button-capture-id">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="6" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/></svg>
+                    Capturar identificación
+                </button>
+                <button class="btn" style="background: #0891b2;" (click)="startPlateCapture()" data-testid="button-capture-plate">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="8" rx="2"/><path d="M6 12h.01"/><path d="M10 12h.01"/><path d="M14 12h4"/></svg>
+                    Capturar placa vehicular
+                </button>
+            </div>
         </div>
 
         <!-- Estado Capturando con Cámara -->
@@ -128,11 +134,47 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
             </div>
         </div>
 
-        <!-- Estado Procesando -->
+        <!-- Estado Procesando INE -->
         <div id="s2-processing" class="container" *ngIf="currentState === 'leyendoIdentificacion'">
             <div class="spinner-container">
                 <div class="spinner"></div>
                 <h2>Leyendo y validando identificación...</h2>
+            </div>
+        </div>
+
+        <!-- Estado Capturando Placa -->
+        <div id="s2-plate-capturing" class="container fade-in" *ngIf="currentState === 'capturandoPlaca'">
+            <h1 style="font-size: 1.3rem; margin-bottom: 0.5rem;">Cámara de placa vehicular</h1>
+            <h2 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Posiciona tu vehículo para que la placa sea visible.</h2>
+            
+            <div class="plate-camera-container" style="position: relative; width: 480px; height: 300px; border-radius: 1rem; overflow: hidden; margin: 0 auto 1rem; border: 3px solid #0891b2; background: #000;">
+                <img [src]="anprStreamUrl" style="width: 100%; height: 100%; object-fit: cover;" alt="Stream ANPR" onerror="this.style.display='none'"/>
+                
+                <!-- Placeholder si no hay stream -->
+                <div *ngIf="!anprStreamUrl" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
+                    <p>Conectando con cámara...</p>
+                </div>
+                
+                <!-- Recuadro de enfoque para placa -->
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 50px; border: 2px dashed rgba(8, 145, 178, 0.8); border-radius: 4px; pointer-events: none;"></div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn" style="background: #334155;" (click)="cancelPlateCapture()" data-testid="button-cancel-plate">
+                    Cancelar
+                </button>
+                <button class="btn" style="background: #0891b2;" (click)="capturePlatePhoto()" data-testid="button-take-plate">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="4"/><path d="M5 7h2a2 2 0 0 0 2-2 1 1 0 0 1 1-1h4a1 1 0 0 1 1 1 2 2 0 0 0 2 2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2"/></svg>
+                    Capturar
+                </button>
+            </div>
+        </div>
+
+        <!-- Estado Procesando Placa -->
+        <div id="s2-plate-processing" class="container" *ngIf="currentState === 'leyendoPlaca'">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+                <h2>Leyendo placa vehicular...</h2>
             </div>
         </div>
     </section>
@@ -170,6 +212,43 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
             <div class="modal-actions" style="display: flex; gap: 1rem; justify-content: center;">
                 <button class="btn" style="background: #334155;" (click)="retakeIdPhoto()" data-testid="button-retake-id">Volver a capturar</button>
                 <button class="btn" (click)="confirmIdData()" data-testid="button-confirm-id">Confirmar y continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN DE PLACA -->
+    <div id="modal-plate-data" class="modal-overlay" [class.visible]="currentState === 'placaMostrada'">
+        <div class="modal-content">
+            <h2 class="modal-title" style="color: #0891b2;">Placa vehicular detectada</h2>
+            
+            <div class="modal-body">
+                <div class="id-data-grid">
+                    <div class="data-field" style="grid-column: span 2;">
+                        <span class="data-label">Número de placa</span>
+                        <span class="data-value" style="font-size: 2rem; color: #0891b2; font-weight: 700;" data-testid="text-plate">{{ plateData?.plate }}</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label">Confianza</span>
+                        <span class="data-value" data-testid="text-confidence">{{ (plateData?.confidence || 0) * 100 | number:'1.0-0' }}%</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label">Región</span>
+                        <span class="data-value" data-testid="text-region">{{ plateData?.region || 'México' }}</span>
+                    </div>
+                    <div class="data-field" *ngIf="plateData?.vehicleType">
+                        <span class="data-label">Tipo de vehículo</span>
+                        <span class="data-value" data-testid="text-vehicle-type">{{ plateData?.vehicleType }}</span>
+                    </div>
+                    <div class="data-field" *ngIf="plateData?.color">
+                        <span class="data-label">Color</span>
+                        <span class="data-value" data-testid="text-vehicle-color">{{ plateData?.color }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn" style="background: #334155;" (click)="retakePlatePhoto()" data-testid="button-retake-plate">Volver a capturar</button>
+                <button class="btn" style="background: #0891b2;" (click)="confirmPlateData()" data-testid="button-confirm-plate">Confirmar y continuar</button>
             </div>
         </div>
     </div>
@@ -217,8 +296,10 @@ export class KioskComponent implements OnInit, OnDestroy {
   currentState: KioskState = 'qrIdle';
   visitorData: VisitorData | null = null;
   ineData: IneData | null = null;
+  plateData: PlateData | null = null;
   errorMessage: string = '';
   qrCameraActive: boolean = false;
+  anprStreamUrl: string = '';
   
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
@@ -478,6 +559,83 @@ export class KioskComponent implements OnInit, OnDestroy {
     this.startIdCapture();
   }
 
+  // ========== MÉTODOS PARA CAPTURA DE PLACA ==========
+
+  startPlateCapture() {
+    this.currentState = 'capturandoPlaca';
+    this.anprStreamUrl = this.accessService.getAnprStreamUrl();
+  }
+
+  cancelPlateCapture() {
+    this.anprStreamUrl = '';
+    this.currentState = 'esperandoIdentificacion';
+  }
+
+  retakePlatePhoto() {
+    this.plateData = null;
+    this.startPlateCapture();
+  }
+
+  capturePlatePhoto() {
+    this.anprStreamUrl = '';
+    this.currentState = 'leyendoPlaca';
+
+    this.accessService.captureAnpr().subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          if (response.success && response.data) {
+            this.plateData = response.data;
+            this.currentState = 'placaMostrada';
+          } else {
+            this.errorMessage = response.message || 'No se pudo detectar la placa';
+            this.currentState = 'error';
+          }
+        });
+      },
+      error: (err) => {
+        this.ngZone.run(() => {
+          console.error('Error capturing plate:', err);
+          this.errorMessage = err.message || 'Error al capturar placa';
+          this.currentState = 'error';
+        });
+      }
+    });
+  }
+
+  confirmPlateData() {
+    if (!this.plateData?.plate) {
+      this.errorMessage = 'No se detectó placa válida';
+      this.currentState = 'error';
+      return;
+    }
+
+    this.accessService.openGate(this.plateData.plate, 'GATE-VEHICLE').subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          if (response.success) {
+            this.currentState = 'accesoAutorizado';
+            
+            setTimeout(() => {
+              this.ngZone.run(() => {
+                this.resetFlow();
+              });
+            }, 7000);
+          } else {
+            this.errorMessage = response.message || 'Error al abrir puerta';
+            this.currentState = 'error';
+          }
+        });
+      },
+      error: (err) => {
+        this.ngZone.run(() => {
+          console.error('Error opening gate:', err);
+          this.errorMessage = err.message || 'Error al abrir puerta';
+          this.currentState = 'error';
+        });
+      }
+    });
+  }
+
   captureIdPhoto() {
     if (!this.ineVideoElement || !this.ineCanvasElement) {
       this.errorMessage = 'Error: Cámara no disponible';
@@ -584,8 +742,10 @@ export class KioskComponent implements OnInit, OnDestroy {
     this.currentState = 'qrIdle';
     this.visitorData = null;
     this.ineData = null;
+    this.plateData = null;
     this.errorMessage = '';
     this.qrCameraActive = false;
+    this.anprStreamUrl = '';
   }
 
   formatDate(dateStr: string | undefined): string {
