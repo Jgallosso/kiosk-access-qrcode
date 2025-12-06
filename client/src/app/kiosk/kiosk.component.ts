@@ -16,17 +16,50 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
         <!-- Estado Inicial (Idle) -->
         <div id="s1-initial" class="container" *ngIf="currentState === 'qrIdle'">
             <h1>Coloca tu código QR en el lector</h1>
-            <h2>El sistema lo detectará automáticamente.</h2>
+            <h2>Presiona el botón para escanear tu código.</h2>
             
-            <div class="camera-preview" style="width: 280px; height: 280px; border-radius: 1rem; overflow: hidden; margin-bottom: 1rem; border: 2px solid #48b8e9; position: relative;">
-                 <video #videoElement [style.display]="'block'" style="width: 100%; height: 100%; object-fit: cover;"></video>
-                 <div class="scan-overlay" style="position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.5);"></div>
+            <div class="qr-preview-container" style="width: 280px; height: 280px; border-radius: 1rem; overflow: hidden; margin-bottom: 1rem; border: 2px solid #48b8e9; position: relative;">
+                 <!-- Imagen placeholder de QR -->
+                 <div class="qr-placeholder" [class.fade-out]="qrCameraActive" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); transition: opacity 0.4s ease-out;">
+                   <svg viewBox="0 0 100 100" style="width: 180px; height: 180px;">
+                     <!-- Esquinas azules -->
+                     <rect x="5" y="5" width="25" height="25" fill="none" stroke="#48b8e9" stroke-width="4"/>
+                     <rect x="10" y="10" width="15" height="15" fill="#48b8e9"/>
+                     <rect x="70" y="5" width="25" height="25" fill="none" stroke="#48b8e9" stroke-width="4"/>
+                     <rect x="75" y="10" width="15" height="15" fill="#48b8e9"/>
+                     <rect x="5" y="70" width="25" height="25" fill="none" stroke="#48b8e9" stroke-width="4"/>
+                     <rect x="10" y="75" width="15" height="15" fill="#48b8e9"/>
+                     <!-- Patrón central gris -->
+                     <rect x="35" y="5" width="8" height="8" fill="#475569"/>
+                     <rect x="47" y="5" width="8" height="8" fill="#475569"/>
+                     <rect x="35" y="17" width="8" height="8" fill="#475569"/>
+                     <rect x="55" y="17" width="8" height="8" fill="#475569"/>
+                     <rect x="35" y="35" width="8" height="8" fill="#475569"/>
+                     <rect x="47" y="35" width="8" height="8" fill="#475569"/>
+                     <rect x="35" y="47" width="8" height="8" fill="#475569"/>
+                     <rect x="47" y="47" width="15" height="15" fill="none" stroke="#475569" stroke-width="3"/>
+                     <rect x="70" y="35" width="8" height="8" fill="#475569"/>
+                     <rect x="82" y="35" width="8" height="8" fill="#475569"/>
+                     <rect x="70" y="47" width="8" height="8" fill="#475569"/>
+                     <rect x="82" y="55" width="8" height="8" fill="#475569"/>
+                     <rect x="70" y="70" width="20" height="8" fill="#475569"/>
+                     <rect x="70" y="82" width="8" height="8" fill="#475569"/>
+                     <rect x="82" y="82" width="8" height="8" fill="#475569"/>
+                     <rect x="35" y="70" width="8" height="20" fill="#475569"/>
+                     <rect x="47" y="82" width="15" height="8" fill="#475569"/>
+                   </svg>
+                 </div>
+                 <!-- Video de cámara -->
+                 <video #videoElement [class.fade-in-camera]="qrCameraActive" [style.display]="qrCameraActive ? 'block' : 'none'" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.4s ease-in;"></video>
+                 <div class="scan-overlay" *ngIf="qrCameraActive" style="position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.5);"></div>
             </div>
             <canvas #canvasElement hidden></canvas>
 
-            <button class="btn" (click)="simulateQrScan()" style="margin-top: 0.5rem; opacity: 0.5; font-size: 0.9rem;" data-testid="button-simulate-qr">
-                Simular Scan (Dev)
+            <button class="btn" (click)="startQrScan()" *ngIf="!qrCameraActive" style="margin-top: 0.5rem;" data-testid="button-read-qr">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+                Leer Código QR
             </button>
+            <p *ngIf="qrCameraActive" style="margin-top: 0.5rem; color: #94a3b8; font-size: 0.9rem;">Escaneando...</p>
         </div>
 
         <!-- Estado Validando -->
@@ -167,7 +200,15 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
         </div>
     </section>
   `,
-  styles: []
+  styles: [`
+    .qr-placeholder.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .fade-in-camera {
+      opacity: 1 !important;
+    }
+  `]
 })
 export class KioskComponent implements OnInit, OnDestroy {
   private readonly accessService = inject(AccessService);
@@ -177,6 +218,7 @@ export class KioskComponent implements OnInit, OnDestroy {
   visitorData: VisitorData | null = null;
   ineData: IneData | null = null;
   errorMessage: string = '';
+  qrCameraActive: boolean = false;
   
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
@@ -196,16 +238,19 @@ export class KioskComponent implements OnInit, OnDestroy {
 
   private async loadCameraConfig() {
     this.accessService.getCameraConfig().subscribe({
-      next: async (config) => {
+      next: (config) => {
         this.cameraConfig = config;
         console.log('[Kiosk] Configuración de cámaras:', config);
-        await this.startCamera();
       },
-      error: async (err) => {
+      error: (err) => {
         console.error('[Kiosk] Error cargando config de cámaras:', err);
-        await this.startCamera();
       }
     });
+  }
+
+  async startQrScan() {
+    this.qrCameraActive = true;
+    await this.startCamera();
   }
 
   private async enumerateCameras() {
@@ -540,10 +585,7 @@ export class KioskComponent implements OnInit, OnDestroy {
     this.visitorData = null;
     this.ineData = null;
     this.errorMessage = '';
-    
-    setTimeout(() => {
-      this.startCamera();
-    }, 100);
+    this.qrCameraActive = false;
   }
 
   formatDate(dateStr: string | undefined): string {
