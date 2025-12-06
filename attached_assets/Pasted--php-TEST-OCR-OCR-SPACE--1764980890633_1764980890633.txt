@@ -1,0 +1,255 @@
+<?php
+
+// -----------------------------------------
+// TEST OCR - OCR.SPACE
+// -----------------------------------------
+
+$apiKey = "K82935026888957"; // tu llave
+
+// Aquí va tu base64 (sin data:image/jpeg;base64,)
+$base64Image = <<<'BASE64'
+
+BASE64;
+
+
+$response = sendToOcrSpace($apiKey, $base64Image);
+
+echo "\n--- JSON CRUDO ---\n";
+echo $response . "\n";
+
+// Convertimos JSON en array
+$data = json_decode($response, true);
+
+if (!$data || !isset($data['ParsedResults'][0]['ParsedText'])) {
+    die("\nError: No se recibió ParsedText.\n");
+}
+
+$rawText = $data['ParsedResults'][0]['ParsedText'];
+
+// -----------------------------------------
+// EXTRAER DATOS DEL OCR
+// -----------------------------------------
+
+$result = extractINEData($rawText);
+
+// -----------------------------------------
+// IMPRIMIR RESULTADO FINAL
+// -----------------------------------------
+
+echo "\n\n--- RESULTADO FINAL ---\n";
+echo "Nombre: " . $result['nombre'] . "\n";
+echo "Apellidos: " . $result['apellidos'] . "\n";
+echo "Sexo: " . $result['sexo'] . "\n";
+echo "Fecha de nacimiento: " . $result['fecha_nacimiento'] . "\n";
+echo "Edad: " . $result['edad'] . "\n";
+echo "Domicilio: " . $result['domicilio'] . "\n";
+echo "CURP: " . $result['curp'] . "\n";
+echo "-------------------------------\n";
+
+
+// -----------------------------------------
+// FUNCIONES
+// -----------------------------------------
+
+function sendToOcrSpace($apiKey, $base64)
+{
+    $url = "https://api.ocr.space/parse/image";
+
+    $postFields = [
+        'apikey'      => $apiKey,
+        'base64Image' => "data:image/jpeg;base64,$base64",
+        'language'    => 'spa',
+        'OCREngine'   => 1,
+        // sin scale / isTable para evitar errores
+    ];
+
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL            => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $postFields,
+    ]);
+
+    $response = curl_exec($curl);
+
+    if ($response === false) {
+        die("Error cURL: " . curl_error($curl) . "\n");
+    }
+
+    curl_close($curl);
+
+    return $response;
+}
+
+
+function extractINEData($text)
+{
+    $result = [
+        "nombre"           => "",
+        "apellidos"        => "",
+        "sexo"             => "",
+        "fecha_nacimiento" => "",
+        "edad"             => "",
+        "domicilio"        => "",
+        "curp"             => "",
+    ];
+
+    $lines = preg_split("/\r\n|\n|\r/", $text);
+    $lines = array_values(array_filter($lines, fn($x) => trim($x) !== ""));
+    $upperLines = array_map(fn($x) => mb_strtoupper(trim($x), 'UTF-8'), $lines);
+
+    // 1) NOMBRE + APELLIDOS
+    $idxNombreLabel = array_search('NOMBRE', $upperLines);
+    $apellido1 = "";
+    $apellido2 = "";
+    $nombre    = "";
+
+    // Patrón INE nueva (con etiqueta NOMBRE)
+    if ($idxNombreLabel !== false) {
+        $apellido1 = $lines[$idxNombreLabel + 1] ?? "";
+        $apellido2 = $lines[$idxNombreLabel + 2] ?? "";
+        $nombre    = $lines[$idxNombreLabel + 3] ?? "";
+    }
+
+    // Fallback: patrón INE vieja / Engine1 (después de "CREDENCIAL PARA VOTAR")
+    if (trim($apellido1) === "" && trim($apellido2) === "" && trim($nombre) === "") {
+        $idxCredencial = array_search('CREDENCIAL PARA VOTAR', $upperLines);
+        if ($idxCredencial !== false) {
+            $apellido1 = $lines[$idxCredencial + 1] ?? "";
+            $apellido2 = $lines[$idxCredencial + 2] ?? "";
+            $nombre    = $lines[$idxCredencial + 3] ?? "";
+        }
+    }
+
+    $result["apellidos"] = trim($apellido1 . " " . $apellido2);
+    $result["nombre"]    = trim($nombre);
+
+    // 2) SEXO (Masculino / Femenino)
+$sexo   = "";
+$letter = "";
+
+// Intento 1: buscar la forma correcta: "SEXO H" o "SEXO M"
+foreach ($lines as $line) {
+    if (preg_match('/SEXO\s*([HM])\b/i', $line, $m)) {
+        $letter = strtoupper($m[1]);
+        break;
+    }
+}
+
+// Intento 2: buscar H/M al FINAL de la línea (ej: "sao H")
+if ($letter === "") {
+    foreach ($lines as $line) {
+        if (preg_match('/([HM])\s*$/i', trim($line), $m)) {
+            $letter = strtoupper($m[1]);
+            break;
+        }
+    }
+}
+
+// Intento 3 (fallback): líneas cortas con solo H/M
+if ($letter === "") {
+    foreach ($lines as $line) {
+        $trim = trim($line);
+        if (mb_strlen($trim) <= 3 && preg_match('/^[HM]$/i', $trim, $m)) {
+            $letter = strtoupper($m[1]);
+            break;
+        }
+    }
+}
+
+if ($letter === "H") {
+    $sexo = "Masculino";
+} elseif ($letter === "M") {
+    $sexo = "Femenino";
+}
+
+$result["sexo"] = $sexo;
+
+
+    // 3) FECHA DE NACIMIENTO
+    $fecha = "";
+    foreach ($upperLines as $i => $uLine) {
+        if (str_contains($uLine, 'FECHA DE NACIMIENTO')) {
+            $fecha = $lines[$i + 1] ?? "";
+            break;
+        }
+    }
+
+    // Fallback: cualquier fecha dd/mm/yyyy
+    if (!$fecha && preg_match('/\d{2}\/\d{2}\/\d{4}/', $text, $m)) {
+        $fecha = $m[0];
+    }
+
+    if ($fecha) {
+        $result["fecha_nacimiento"] = $fecha;
+        try {
+            $birth = new DateTime(str_replace("/", "-", $fecha));
+            $today = new DateTime();
+            $result["edad"] = $today->diff($birth)->y;
+        } catch (Exception $e) {
+            $result["edad"] = "";
+        }
+    }
+
+    // 4) DOMICILIO
+    $domicilio  = "";
+    $idxDomLabel = null;
+
+    // Intento 1: DOMICILIO exacto o casi (DOMICIOU, DOMICIO, etc.)
+    foreach ($upperLines as $i => $uLine) {
+        if ($uLine === 'DOMICILIO' || levenshtein($uLine, 'DOMICILIO') <= 2) {
+            $idxDomLabel = $i;
+            break;
+        }
+    }
+
+    if ($idxDomLabel !== null) {
+        $domParts = [];
+        for ($j = 1; $j <= 3; $j++) {
+            if (isset($lines[$idxDomLabel + $j])) {
+                $domParts[] = $lines[$idxDomLabel + $j];
+            }
+        }
+        $domicilio = trim(implode(" ", $domParts));
+    } else {
+        // Intento 2: buscar primera línea que huela a dirección (CALZ, CALLE, FRACC, COL, AV, BLVD, PROF, etc.)
+        $start = null;
+        foreach ($lines as $i => $line) {
+            if (preg_match('/\b(CALZ|CALLE|AV\.?|BLVD|FRACC|COL|PROF)\b/i', $line)) {
+                $start = $i;
+                break;
+            }
+        }
+
+        if ($start !== null) {
+            $domParts = [];
+            for ($j = 0; $j <= 2; $j++) {
+                if (isset($lines[$start + $j])) {
+                    $domParts[] = $lines[$start + $j];
+                }
+            }
+            $domicilio = trim(implode(" ", $domParts));
+        }
+    }
+
+    $result["domicilio"] = $domicilio;
+
+    // 5) CURP
+    $curp = "";
+    foreach ($lines as $line) {
+        if (preg_match('/CURP\s+([A-Z0-9]+)/i', $line, $m)) {
+            $curp = $m[1];
+            break;
+        }
+    }
+
+    if (!$curp && preg_match('/[A-Z]{4}\d{6}[A-Z0-9]{8}/', $text, $m)) {
+        $curp = $m[0];
+    }
+
+    $result["curp"] = $curp;
+
+    return $result;
+}

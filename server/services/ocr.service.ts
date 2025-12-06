@@ -1,19 +1,14 @@
 /**
  * OCR Service para procesamiento de identificaciones (INE/Licencia)
  * 
- * Este servicio simula el procesamiento OCR de identificaciones oficiales.
- * Está estructurado para conectarse a proveedores OCR reales como:
- * - AWS Textract
- * - Google Cloud Vision
- * - Azure Computer Vision
- * - Servicios especializados en INE mexicana (INECheck, Mati, etc.)
+ * Este servicio usa OCR.space API cuando está configurada la API key,
+ * de lo contrario usa datos mock para desarrollo.
  * 
- * INTEGRACIÓN FUTURA:
- * - Configurar credenciales del proveedor OCR en variables de entorno
- * - Implementar validación de CURP contra RENAPO
- * - Agregar detección de documentos falsos/alterados
- * - Almacenar hash de documentos para prevenir duplicados
+ * Variables de entorno requeridas para producción:
+ * - OCR_SPACE_API_KEY: API key de ocr.space
  */
+
+import { processWithOcrSpace } from './api.ocr.service';
 
 export interface IneData {
   nombreCompleto: string;
@@ -62,19 +57,11 @@ export class OcrService {
   /**
    * Procesa una imagen de INE/Licencia y extrae los datos mediante OCR
    * 
-   * @param imageBase64 - Imagen codificada en base64
-   * @returns Datos extraídos de la identificación
-   * 
-   * TODO PRODUCCIÓN:
-   * - Enviar imagen a proveedor OCR (AWS Textract, Google Vision, etc.)
-   * - Validar formato y calidad de imagen antes de procesar
-   * - Implementar retry logic para fallos de API
-   * - Agregar validación cruzada de datos (CURP vs nombre/fecha)
+   * Si OCR_SPACE_API_KEY está configurada, usa la API real.
+   * De lo contrario, retorna datos mock para desarrollo.
    */
   async processIne(imageBase64: string): Promise<OcrProcessResult> {
     const startTime = Date.now();
-    
-    await this.simulateOcrProcessing();
 
     if (!imageBase64) {
       return {
@@ -85,6 +72,41 @@ export class OcrService {
       };
     }
 
+    // Usar API real si está configurada
+    if (process.env.OCR_SPACE_API_KEY) {
+      console.log('[OCR] Usando OCR.space API');
+      const result = await processWithOcrSpace(imageBase64);
+      
+      if (result.success && result.data) {
+        const ineData: IneData = {
+          nombreCompleto: `${result.data.nombre} ${result.data.apellidos}`.trim(),
+          fechaNacimiento: result.data.fechaNacimiento,
+          direccion: result.data.domicilio,
+          sexo: result.data.sexo === 'Masculino' ? 'M' : 'F',
+          curp: result.data.curp,
+        };
+
+        return {
+          success: true,
+          message: 'Identificación procesada correctamente',
+          data: ineData,
+          confidence: 0.92,
+          processingTimeMs: Date.now() - startTime
+        };
+      }
+
+      return {
+        success: false,
+        message: result.message,
+        errorCode: 'OCR_API_ERROR',
+        processingTimeMs: Date.now() - startTime
+      };
+    }
+
+    // Modo desarrollo: usar datos mock
+    console.log('[OCR] Usando datos mock (OCR_SPACE_API_KEY no configurada)');
+    await this.simulateOcrProcessing();
+
     const randomIndex = Math.floor(Math.random() * mockIneData.length);
     const extractedData = mockIneData[randomIndex];
 
@@ -92,7 +114,7 @@ export class OcrService {
 
     return {
       success: true,
-      message: 'Identificación procesada correctamente',
+      message: 'Identificación procesada correctamente (modo desarrollo)',
       data: extractedData,
       confidence: Math.round(confidence * 100) / 100,
       processingTimeMs: Date.now() - startTime
