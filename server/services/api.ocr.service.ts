@@ -34,7 +34,7 @@ export async function processWithOcrSpace(base64Image: string): Promise<{ succes
     formData.append('apikey', apiKey);
     formData.append('base64Image', imageData);
     formData.append('language', 'spa');
-    formData.append('OCREngine', '1');
+    formData.append('OCREngine', '2');
 
     const response = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
