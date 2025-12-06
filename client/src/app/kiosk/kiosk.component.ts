@@ -358,7 +358,6 @@ export class KioskComponent implements OnInit, OnDestroy {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     
     try {
-      // Si no tenemos la lista de cámaras, re-enumerar
       if (this.availableDevices.length === 0 || !this.availableDevices[0].label) {
         await this.enumerateCameras();
       }
@@ -366,13 +365,42 @@ export class KioskComponent implements OnInit, OnDestroy {
       const ineCameraId = this.cameraConfig?.ineCamera ? this.findCameraByName(this.cameraConfig.ineCamera) : undefined;
       
       const videoConstraints: MediaTrackConstraints = ineCameraId 
-        ? { deviceId: { exact: ineCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-        : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } };
+        ? { deviceId: { exact: ineCameraId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        : { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } };
       
       console.log('[Kiosk] Iniciando cámara INE con:', ineCameraId ? `deviceId: ${ineCameraId}` : 'facingMode: environment');
       
       const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
       this.ineStream = stream;
+      
+      // Aplicar configuración de enfoque si está disponible
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        try {
+          const capabilities = videoTrack.getCapabilities() as any;
+          const advancedConstraints: any = {};
+          
+          if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+            advancedConstraints.focusMode = 'continuous';
+            console.log('[Kiosk] Enfoque continuo activado');
+          } else if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
+            advancedConstraints.focusMode = 'manual';
+            if (capabilities.focusDistance && capabilities.focusDistance.min !== undefined) {
+              advancedConstraints.focusDistance = capabilities.focusDistance.min;
+              console.log('[Kiosk] Enfoque manual con distancia mínima:', capabilities.focusDistance.min);
+            }
+          }
+          
+          if (Object.keys(advancedConstraints).length > 0) {
+            await videoTrack.applyConstraints({ advanced: [advancedConstraints] });
+          }
+          
+          const settings = videoTrack.getSettings();
+          console.log('[Kiosk] Resolución de cámara INE:', settings.width, 'x', settings.height);
+        } catch (e) {
+          console.log('[Kiosk] No se pudo aplicar configuración de enfoque:', e);
+        }
+      }
       
       if (this.ineVideoElement) {
         this.ineVideoElement.nativeElement.srcObject = stream;
@@ -422,11 +450,28 @@ export class KioskComponent implements OnInit, OnDestroy {
       return;
     }
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Calcular el área de recorte para la INE (marco central con padding)
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    
+    // El marco visual tiene un padding de ~4% en cada lado (20px de 480px = ~4%)
+    const paddingPercent = 0.04;
+    const cropX = Math.floor(videoWidth * paddingPercent);
+    const cropY = Math.floor(videoHeight * paddingPercent);
+    const cropWidth = Math.floor(videoWidth * (1 - 2 * paddingPercent));
+    const cropHeight = Math.floor(videoHeight * (1 - 2 * paddingPercent));
+    
+    // Canvas con la resolución del área recortada (máxima calidad)
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    
+    // Dibujar solo el área recortada
+    context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    
+    console.log('[Kiosk] Captura INE - Resolución original:', videoWidth, 'x', videoHeight);
+    console.log('[Kiosk] Captura INE - Área recortada:', cropWidth, 'x', cropHeight);
 
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.9);
+    const imageBase64 = canvas.toDataURL('image/jpeg', 0.95);
     
     this.stopIneCamera();
     this.currentState = 'leyendoIdentificacion';
