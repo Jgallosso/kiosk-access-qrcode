@@ -58,7 +58,15 @@ export async function processWithOcrSpace(base64Image: string): Promise<{ succes
     }
 
     const rawText = data.ParsedResults[0].ParsedText;
+    
+    console.log('[OCR.space] Texto crudo extraído:');
+    console.log('-----------------------------------');
+    console.log(rawText);
+    console.log('-----------------------------------');
+    
     const ineData = extractINEData(rawText);
+    
+    console.log('[OCR.space] Datos parseados:', JSON.stringify(ineData, null, 2));
 
     return { 
       success: true, 
