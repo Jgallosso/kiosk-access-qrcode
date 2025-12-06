@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import jsQR from 'jsqr';
 import { AccessService, VisitorData, IneData } from '../services/access.service';
 
-type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentificacion' | 'leyendoIdentificacion' | 'identificacionMostrada' | 'accesoAutorizado' | 'error';
+type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentificacion' | 'capturandoIdentificacion' | 'leyendoIdentificacion' | 'identificacionMostrada' | 'accesoAutorizado' | 'error';
 
 @Component({
   selector: 'app-kiosk',
@@ -54,7 +54,7 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
     </section>
 
     <!-- PANTALLA 2: CAPTURA INE -->
-    <section id="screen-2" class="container" *ngIf="currentState === 'esperandoIdentificacion' || currentState === 'leyendoIdentificacion' || currentState === 'identificacionMostrada'">
+    <section id="screen-2" class="container" *ngIf="currentState === 'esperandoIdentificacion' || currentState === 'capturandoIdentificacion' || currentState === 'leyendoIdentificacion' || currentState === 'identificacionMostrada'">
         <!-- Estado Inicial -->
         <div id="s2-initial" class="container fade-in" *ngIf="currentState === 'esperandoIdentificacion'">
             <h1>Coloca tu identificación en el módulo correspondiente</h1>
@@ -63,6 +63,36 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="6" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/></svg>
                 Capturar identificación
             </button>
+        </div>
+
+        <!-- Estado Capturando con Cámara -->
+        <div id="s2-capturing" class="container fade-in" *ngIf="currentState === 'capturandoIdentificacion'">
+            <h1 style="font-size: 1.3rem; margin-bottom: 0.5rem;">Enfoca tu INE o licencia en el recuadro</h1>
+            <h2 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Asegúrate de que esté bien iluminada y legible.</h2>
+            
+            <div class="id-camera-container" style="position: relative; width: 480px; height: 300px; border-radius: 1rem; overflow: hidden; margin: 0 auto 1rem; border: 3px solid #48b8e9; background: #000;">
+                <video #ineVideoElement style="width: 100%; height: 100%; object-fit: cover;"></video>
+                
+                <!-- Recuadro de enfoque -->
+                <div class="id-focus-frame" style="position: absolute; inset: 20px; border: 2px dashed rgba(72, 184, 233, 0.8); border-radius: 8px; pointer-events: none;"></div>
+                
+                <!-- Esquinas del recuadro -->
+                <div style="position: absolute; top: 15px; left: 15px; width: 25px; height: 25px; border-top: 3px solid #48b8e9; border-left: 3px solid #48b8e9;"></div>
+                <div style="position: absolute; top: 15px; right: 15px; width: 25px; height: 25px; border-top: 3px solid #48b8e9; border-right: 3px solid #48b8e9;"></div>
+                <div style="position: absolute; bottom: 15px; left: 15px; width: 25px; height: 25px; border-bottom: 3px solid #48b8e9; border-left: 3px solid #48b8e9;"></div>
+                <div style="position: absolute; bottom: 15px; right: 15px; width: 25px; height: 25px; border-bottom: 3px solid #48b8e9; border-right: 3px solid #48b8e9;"></div>
+            </div>
+            <canvas #ineCanvasElement hidden></canvas>
+
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn" style="background: #334155;" (click)="cancelIdCapture()" data-testid="button-cancel-capture">
+                    Cancelar
+                </button>
+                <button class="btn" (click)="captureIdPhoto()" data-testid="button-take-photo">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="4"/><path d="M5 7h2a2 2 0 0 0 2-2 1 1 0 0 1 1-1h4a1 1 0 0 1 1 1 2 2 0 0 0 2 2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2"/></svg>
+                    Capturar
+                </button>
+            </div>
         </div>
 
         <!-- Estado Procesando -->
@@ -149,9 +179,12 @@ export class KioskComponent implements OnInit, OnDestroy {
   
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('ineVideoElement') ineVideoElement!: ElementRef<HTMLVideoElement>;
+  @ViewChild('ineCanvasElement') ineCanvasElement!: ElementRef<HTMLCanvasElement>;
   
   private scanning = false;
   private stream: MediaStream | null = null;
+  private ineStream: MediaStream | null = null;
   private animationFrameId: number | null = null;
 
   ngOnInit(): void {
@@ -261,24 +294,96 @@ export class KioskComponent implements OnInit, OnDestroy {
   }
 
   startIdCapture() {
+    this.currentState = 'capturandoIdentificacion';
+    
+    setTimeout(() => {
+      this.startIneCamera();
+    }, 100);
+  }
+
+  private startIneCamera() {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      })
+        .then(stream => {
+          this.ineStream = stream;
+          if (this.ineVideoElement) {
+            this.ineVideoElement.nativeElement.srcObject = stream;
+            this.ineVideoElement.nativeElement.setAttribute('playsinline', 'true');
+            this.ineVideoElement.nativeElement.play();
+          }
+        })
+        .catch(err => {
+          console.error("INE Camera error:", err);
+          this.ngZone.run(() => {
+            this.errorMessage = 'Error al acceder a la cámara';
+            this.currentState = 'error';
+          });
+        });
+    }
+  }
+
+  private stopIneCamera() {
+    if (this.ineStream) {
+      this.ineStream.getTracks().forEach(track => track.stop());
+      this.ineStream = null;
+    }
+  }
+
+  cancelIdCapture() {
+    this.stopIneCamera();
+    this.currentState = 'esperandoIdentificacion';
+  }
+
+  captureIdPhoto() {
+    if (!this.ineVideoElement || !this.ineCanvasElement) {
+      this.errorMessage = 'Error: Cámara no disponible';
+      this.currentState = 'error';
+      return;
+    }
+
+    const video = this.ineVideoElement.nativeElement;
+    const canvas = this.ineCanvasElement.nativeElement;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      this.errorMessage = 'Error al capturar imagen';
+      this.currentState = 'error';
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageBase64 = canvas.toDataURL('image/jpeg', 0.9);
+    
+    this.stopIneCamera();
     this.currentState = 'leyendoIdentificacion';
-    
-    const mockImageBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    
-    this.accessService.processIne(mockImageBase64).subscribe({
+
+    this.accessService.processIne(imageBase64).subscribe({
       next: (response) => {
-        if (response.success && response.data) {
-          this.ineData = response.data;
-          this.currentState = 'identificacionMostrada';
-        } else {
-          this.errorMessage = response.message || 'Error procesando identificación';
-          this.currentState = 'error';
-        }
+        this.ngZone.run(() => {
+          if (response.success && response.data) {
+            this.ineData = response.data;
+            this.currentState = 'identificacionMostrada';
+          } else {
+            this.errorMessage = response.message || 'Error procesando identificación';
+            this.currentState = 'error';
+          }
+        });
       },
       error: (err) => {
-        console.error('Error processing INE:', err);
-        this.errorMessage = err.message || 'Error al procesar identificación';
-        this.currentState = 'error';
+        this.ngZone.run(() => {
+          console.error('Error processing INE:', err);
+          this.errorMessage = err.message || 'Error al procesar identificación';
+          this.currentState = 'error';
+        });
       }
     });
   }
@@ -319,6 +424,7 @@ export class KioskComponent implements OnInit, OnDestroy {
 
   resetFlow() {
     this.stopCamera();
+    this.stopIneCamera();
     
     this.currentState = 'qrIdle';
     this.visitorData = null;
