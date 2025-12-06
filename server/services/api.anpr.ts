@@ -29,19 +29,19 @@ export async function processPlateWithAnpr(imageBase64: string): Promise<AnprRes
       ? imageBase64.split('base64,')[1] 
       : imageBase64;
 
+    // Usar FormData como en el código PHP original
+    const formData = new FormData();
+    formData.append('upload', base64Data);
+    formData.append('regions', 'mx');
+
+    console.log('[ANPR API] Enviando imagen a PlateRecognizer...');
+
     const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
       method: 'POST',
       headers: {
         'Authorization': `Token ${apiToken}`,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        upload: base64Data,
-        regions: ['mx'],
-        config: {
-          mode: 'fast'
-        }
-      }),
+      body: formData,
     });
 
     const processingTimeMs = Date.now() - startTime;
@@ -61,7 +61,20 @@ export async function processPlateWithAnpr(imageBase64: string): Promise<AnprRes
     console.log('[ANPR API] Respuesta cruda:', JSON.stringify(data, null, 2));
 
     if (data.results && data.results.length > 0) {
-      const result = data.results[0];
+      // Filtrar placas con score >= 0.85 (85%) como en el código PHP
+      const validResults = data.results.filter((r: any) => (r.score || 0) >= 0.85);
+      
+      if (validResults.length === 0) {
+        console.log('[ANPR API] No hay placas con score >= 85%');
+        return {
+          success: false,
+          message: 'No hay placas con confianza suficiente (>= 85%)',
+          processingTimeMs,
+          rawResponse: data
+        };
+      }
+
+      const result = validResults[0];
       
       const plateData: PlateData = {
         plate: result.plate?.toUpperCase() || '',
@@ -72,6 +85,7 @@ export async function processPlateWithAnpr(imageBase64: string): Promise<AnprRes
       };
 
       console.log('[ANPR API] Placa detectada:', plateData);
+      console.log(`[ANPR API] Score: ${Math.round(plateData.confidence * 100)}%`);
 
       return {
         success: true,

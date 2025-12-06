@@ -1,0 +1,113 @@
+<?php
+
+// -----------------------------------------
+// TEST PLATE RECOGNIZER
+// -----------------------------------------
+
+$apiToken = '58d8622f57776cf6f7909c7bc88c040408b38532'; // <-- pon aquí tu token de Plate Recognizer
+
+// Aquí pega tu imagen en base64 (SOLO el base64, sin "data:image/jpeg;base64,")
+$base64Image = <<<'BASE64'
+
+BASE64;
+
+// Llamamos al servicio
+$response = sendToPlateRecognizer($apiToken, $base64Image, ['mx']); // 'mx' = México
+
+echo "\n--- JSON CRUDO ---\n";
+echo $response . "\n";
+
+// Decodificamos JSON
+$data = json_decode($response, true);
+
+if (!$data || !isset($data['results'])) {
+    echo "\nError: Respuesta sin 'results'.\n";
+    exit;
+}
+
+echo "\n--- RESULTADO PLACAS ---\n";
+
+if (count($data['results']) === 0) {
+    echo "No se detectaron placas.\n";
+    exit;
+}
+
+$index = 1;
+
+// Imprimimos placas filtrando por score >= 0.85
+foreach ($data['results'] as $plateData) {
+
+    $rawScore = $plateData['score'] ?? 0.0;
+
+    // SOLO placas con score >= 85%
+    if ($rawScore < 0.85) {
+        continue;
+    }
+
+    // Placa en MAYÚSCULAS
+    $plate  = isset($plateData['plate']) ? strtoupper($plateData['plate']) : '(SIN TEXTO)';
+    $score  = round($rawScore * 100, 2) . '%';
+    $region = $plateData['region']['code']  ?? 'N/D';
+    $rScore = isset($plateData['region']['score']) ? round($plateData['region']['score'] * 100, 2) . '%' : 'N/D';
+
+    echo "Placa #{$index}:\n";
+    echo "  Texto:   {$plate}\n";
+    echo "  Score:   {$score}\n";
+    echo "  Región:  {$region} ({$rScore})\n";
+    echo "-----------------------------\n";
+
+    $index++;
+}
+
+if ($index === 1) {
+    echo "No hay placas con score mayor o igual a 85%.\n";
+}
+
+
+// -----------------------------------------
+// FUNCIONES
+// -----------------------------------------
+
+function sendToPlateRecognizer(string $apiToken, string $base64Image, array $regions = [])
+{
+    $url = 'https://api.platerecognizer.com/v1/plate-reader/';
+
+    // regions puede ser array o cadena coma-separada
+    $regionsParam = '';
+    if (!empty($regions)) {
+        $regionsParam = implode(',', $regions);
+    }
+
+    // Según la doc, 'upload' acepta base64 directo
+    $postFields = [
+        'upload' => $base64Image,
+    ];
+
+    if ($regionsParam !== '') {
+        $postFields['regions'] = $regionsParam; // ej. "mx" o "mx,us-ca"
+    }
+
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL            => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $postFields,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: Token {$apiToken}",
+        ],
+    ]);
+
+    $response = curl_exec($curl);
+
+    if ($response === false) {
+        $err = curl_error($curl);
+        curl_close($curl);
+        die("Error cURL: {$err}\n");
+    }
+
+    curl_close($curl);
+
+    return $response;
+}
