@@ -134,7 +134,8 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
                 </div>
             </div>
 
-            <div class="modal-actions">
+            <div class="modal-actions" style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn" style="background: #334155;" (click)="retakeIdPhoto()" data-testid="button-retake-id">Volver a capturar</button>
                 <button class="btn" (click)="confirmIdData()" data-testid="button-confirm-id">Confirmar y continuar</button>
             </div>
         </div>
@@ -338,6 +339,11 @@ export class KioskComponent implements OnInit, OnDestroy {
   cancelIdCapture() {
     this.stopIneCamera();
     this.currentState = 'esperandoIdentificacion';
+  }
+
+  retakeIdPhoto() {
+    this.ineData = null;
+    this.startIdCapture();
   }
 
   captureIdPhoto() {
