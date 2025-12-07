@@ -270,20 +270,12 @@ type KioskState =
             <div class="step completed" style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></div>
         </div>
 
-        <div class="screen-success-content">
-            <div class="success-icon" style="width: 80px; height: 80px; font-size: 2.5rem; margin: 0 auto 1rem; background: rgba(34,197,94,0.15); color: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✓</div>
-            <h1 style="color: #22c55e;">Acceso autorizado</h1>
-            <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Todos los datos han sido validados correctamente.</p>
-            <p class="main-msg" style="font-weight: 600; color: #22c55e; font-size: 1.3rem; margin-top: 0.5rem;">¡Ya puedes pasar!</p>
+        <div class="screen-success-content" style="text-align: center;">
+            <div class="success-icon" style="width: 100px; height: 100px; font-size: 3rem; margin: 0 auto 1.5rem; background: rgba(34,197,94,0.15); color: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✓</div>
+            <h1 style="color: #22c55e; font-size: 2rem; margin-bottom: 1rem;">Acceso autorizado</h1>
+            <p class="main-msg" style="font-weight: 700; color: #22c55e; font-size: 2rem; margin: 1.5rem 0;">¡Ya puedes pasar!</p>
             
-            <div class="summary-card" style="background: #1e293b; border-radius: 1rem; padding: 1rem; max-width: 400px; margin: 1.5rem auto 1rem; text-align: left;">
-                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;"><strong style="color: #e2e8f0;">Visitante:</strong> {{ visitorData?.nombre }}</p>
-                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;"><strong style="color: #e2e8f0;">Destino:</strong> {{ visitorData?.unidadDestino }}</p>
-                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;" *ngIf="ineData?.curp"><strong style="color: #e2e8f0;">CURP:</strong> {{ ineData?.curp }}</p>
-                <p style="font-size: 0.85rem; color: #94a3b8;" *ngIf="plateData?.plate"><strong style="color: #e2e8f0;">Placa:</strong> {{ plateData?.plate }}</p>
-            </div>
-
-            <div class="reminders-list" style="max-width: 400px; margin: 0 auto; text-align: left; font-size: 0.85rem; color: #94a3b8;">
+            <div class="reminders-list" style="max-width: 400px; margin: 2rem auto 0; text-align: center; font-size: 0.9rem; color: #94a3b8;">
                 <p>• Respeta los límites de velocidad dentro del residencial.</p>
                 <p>• Respeta el reglamento y las indicaciones del personal de seguridad.</p>
             </div>
