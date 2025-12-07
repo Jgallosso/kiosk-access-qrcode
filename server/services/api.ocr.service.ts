@@ -50,8 +50,9 @@ export async function processWithOcrSpace(base64Image: string): Promise<{ succes
 
     const data: OcrSpaceResponse = await response.json();
 
-    console.log('[OCR.space] Respuesta cruda de la API:');
-    console.log(JSON.stringify(data, null, 2));
+    // Log sin base64 para evitar contaminar los logs
+    const sanitizedData = { ...data };
+    console.log('[OCR.space] Respuesta de la API recibida (sin base64)');
 
     if (data.IsErroredOnProcessing || !data.ParsedResults?.[0]?.ParsedText) {
       console.log('[OCR.space] Error - IsErroredOnProcessing:', data.IsErroredOnProcessing);

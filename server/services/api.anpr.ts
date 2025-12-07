@@ -58,7 +58,12 @@ export async function processPlateWithAnpr(imageBase64: string): Promise<AnprRes
 
     const data = await response.json();
     
-    console.log('[ANPR API] Respuesta cruda:', JSON.stringify(data, null, 2));
+    // Log sin base64 para evitar contaminar los logs
+    const sanitizedData = { ...data };
+    // Remover campos que puedan contener imágenes
+    if (sanitizedData.upload) delete sanitizedData.upload;
+    if (sanitizedData.image) delete sanitizedData.image;
+    console.log('[ANPR API] Respuesta recibida:', JSON.stringify(sanitizedData, null, 2));
 
     if (data.results && data.results.length > 0) {
       // Filtrar placas con score >= 0.85 (85%) como en el código PHP

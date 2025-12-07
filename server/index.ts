@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -50,7 +51,15 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        // Sanitizar respuesta removiendo campos con base64 para evitar contaminar logs
+        const sanitized = { ...capturedJsonResponse };
+        if (sanitized.imageBase64) {
+          sanitized.imageBase64 = `[base64 image removed - ${sanitized.imageBase64.length} chars]`;
+        }
+        if (sanitized.data?.imageBase64) {
+          sanitized.data.imageBase64 = `[base64 image removed - ${sanitized.data.imageBase64.length} chars]`;
+        }
+        logLine += ` :: ${JSON.stringify(sanitized)}`;
       }
 
       log(logLine);
