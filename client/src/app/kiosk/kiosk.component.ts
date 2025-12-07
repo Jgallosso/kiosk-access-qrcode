@@ -3,33 +3,36 @@ import { CommonModule } from '@angular/common';
 import jsQR from 'jsqr';
 import { AccessService, VisitorData, IneData, CameraConfig, PlateData } from '../services/access.service';
 
-type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentificacion' | 'capturandoIdentificacion' | 'leyendoIdentificacion' | 'identificacionMostrada' | 'capturandoPlaca' | 'leyendoPlaca' | 'placaMostrada' | 'accesoAutorizado' | 'error';
+type KioskState = 
+  | 'qrIdle' | 'qrValidando' | 'qrValidado'
+  | 'capturandoIne' | 'procesandoIne' | 'ineMostrada'
+  | 'capturandoPlaca' | 'procesandoPlaca' | 'placaMostrada'
+  | 'accesoAutorizado' | 'error';
 
 @Component({
   selector: 'app-kiosk',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <!-- PANTALLA 1: BIENVENIDA + QR -->
-    <section id="screen-1" class="container fade-in" *ngIf="currentState === 'qrIdle' || currentState === 'qrValidando' || currentState === 'qrValidado'">
+    <!-- ============================================== -->
+    <!-- LAYOUT 1: LECTURA DE QR -->
+    <!-- ============================================== -->
+    <section id="layout-qr" class="container fade-in" *ngIf="currentState === 'qrIdle' || currentState === 'qrValidando' || currentState === 'qrValidado'">
         
         <!-- Estado Inicial (Idle) -->
-        <div id="s1-initial" class="container" *ngIf="currentState === 'qrIdle'">
+        <div id="qr-idle" class="container" *ngIf="currentState === 'qrIdle'">
             <h1>Coloca tu código QR en el lector</h1>
             <h2>Presiona el botón para escanear tu código.</h2>
             
             <div class="qr-preview-container" style="width: 280px; height: 280px; border-radius: 1rem; overflow: hidden; margin-bottom: 1rem; border: 2px solid #48b8e9; position: relative;">
-                 <!-- Imagen placeholder de QR -->
                  <div class="qr-placeholder" [class.fade-out]="qrCameraActive" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); transition: opacity 0.4s ease-out;">
                    <svg viewBox="0 0 100 100" style="width: 180px; height: 180px;">
-                     <!-- Esquinas azules -->
                      <rect x="5" y="5" width="25" height="25" fill="none" stroke="#48b8e9" stroke-width="4"/>
                      <rect x="10" y="10" width="15" height="15" fill="#48b8e9"/>
                      <rect x="70" y="5" width="25" height="25" fill="none" stroke="#48b8e9" stroke-width="4"/>
                      <rect x="75" y="10" width="15" height="15" fill="#48b8e9"/>
                      <rect x="5" y="70" width="25" height="25" fill="none" stroke="#48b8e9" stroke-width="4"/>
                      <rect x="10" y="75" width="15" height="15" fill="#48b8e9"/>
-                     <!-- Patrón central gris -->
                      <rect x="35" y="5" width="8" height="8" fill="#475569"/>
                      <rect x="47" y="5" width="8" height="8" fill="#475569"/>
                      <rect x="35" y="17" width="8" height="8" fill="#475569"/>
@@ -49,7 +52,6 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
                      <rect x="47" y="82" width="15" height="8" fill="#475569"/>
                    </svg>
                  </div>
-                 <!-- Video de cámara -->
                  <video #videoElement [class.fade-in-camera]="qrCameraActive" [style.display]="qrCameraActive ? 'block' : 'none'" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.4s ease-in;"></video>
                  <div class="scan-overlay" *ngIf="qrCameraActive" style="position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.5);"></div>
             </div>
@@ -63,15 +65,15 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
         </div>
 
         <!-- Estado Validando -->
-        <div id="s1-validating" class="container" *ngIf="currentState === 'qrValidando'">
+        <div id="qr-validando" class="container" *ngIf="currentState === 'qrValidando'">
             <div class="spinner-container">
                 <div class="spinner"></div>
                 <h2>Validando en el sistema...</h2>
             </div>
         </div>
 
-        <!-- Estado Éxito QR -->
-        <div id="s1-success" class="container" *ngIf="currentState === 'qrValidado'">
+        <!-- Estado QR Validado -->
+        <div id="qr-validado" class="container" *ngIf="currentState === 'qrValidado'">
             <div class="welcome-card fade-in">
                 <div style="display: flex; justify-content: center;">
                     <div class="success-icon" style="width: 60px; height: 60px; font-size: 2rem; margin-bottom: 0.75rem;">✓</div>
@@ -80,42 +82,37 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
                 <p style="font-size: 1rem;">Tu código QR es de acceso {{ visitorData?.tipoAcceso }}.</p>
                 <p class="highlight-text" style="font-size: 1rem;">Válido del {{ formatDate(visitorData?.fechaInicio) }} al {{ formatDate(visitorData?.fechaFin) }}.</p>
                 <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #334155;">
-                    <p style="font-size: 0.9rem; color: #e2e8f0;">Ahora vamos a validar tu identificación (INE o licencia).</p>
+                    <p style="font-size: 0.9rem; color: #e2e8f0;">Ahora vamos a validar tu identificación.</p>
+                    <button class="btn" (click)="goToIneCapture()" style="margin-top: 1rem;" data-testid="button-continue-ine">
+                        Continuar
+                    </button>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- PANTALLA 2: CAPTURA INE / PLACA -->
-    <section id="screen-2" class="container" *ngIf="currentState === 'esperandoIdentificacion' || currentState === 'capturandoIdentificacion' || currentState === 'leyendoIdentificacion' || currentState === 'identificacionMostrada' || currentState === 'capturandoPlaca' || currentState === 'leyendoPlaca' || currentState === 'placaMostrada'">
-        <!-- Estado Inicial - Selección de método -->
-        <div id="s2-initial" class="container fade-in" *ngIf="currentState === 'esperandoIdentificacion'">
-            <h1>Selecciona el tipo de validación</h1>
-            <h2>Puedes validar con tu identificación o con la placa de tu vehículo.</h2>
-            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                <button class="btn" (click)="startIdCapture()" data-testid="button-capture-id">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="6" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/></svg>
-                    Capturar identificación
-                </button>
-                <button class="btn" style="background: #0891b2;" (click)="startPlateCapture()" data-testid="button-capture-plate">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="8" rx="2"/><path d="M6 12h.01"/><path d="M10 12h.01"/><path d="M14 12h4"/></svg>
-                    Capturar placa vehicular
-                </button>
-            </div>
+    <!-- ============================================== -->
+    <!-- LAYOUT 2: VALIDACIÓN DE INE -->
+    <!-- ============================================== -->
+    <section id="layout-ine" class="container fade-in" *ngIf="currentState === 'capturandoIne' || currentState === 'procesandoIne' || currentState === 'ineMostrada'">
+        
+        <!-- Progreso -->
+        <div class="progress-indicator" style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <div class="step completed" style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></div>
+            <div class="step active" style="width: 12px; height: 12px; border-radius: 50%; background: #48b8e9;"></div>
+            <div class="step" style="width: 12px; height: 12px; border-radius: 50%; background: #475569;"></div>
         </div>
 
-        <!-- Estado Capturando con Cámara -->
-        <div id="s2-capturing" class="container fade-in" *ngIf="currentState === 'capturandoIdentificacion'">
-            <h1 style="font-size: 1.3rem; margin-bottom: 0.5rem;">Enfoca tu INE o licencia en el recuadro</h1>
-            <h2 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Asegúrate de que esté bien iluminada y legible.</h2>
+        <!-- Capturando INE -->
+        <div id="ine-capturando" class="container fade-in" *ngIf="currentState === 'capturandoIne'">
+            <h1 style="font-size: 1.3rem; margin-bottom: 0.5rem;">Paso 1: Captura tu identificación</h1>
+            <h2 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Enfoca tu INE o licencia en el recuadro.</h2>
             
             <div class="id-camera-container" style="position: relative; width: 480px; height: 300px; border-radius: 1rem; overflow: hidden; margin: 0 auto 1rem; border: 3px solid #48b8e9; background: #000;">
                 <video #ineVideoElement style="width: 100%; height: 100%; object-fit: cover;"></video>
                 
-                <!-- Recuadro de enfoque -->
                 <div class="id-focus-frame" style="position: absolute; inset: 20px; border: 2px dashed rgba(72, 184, 233, 0.8); border-radius: 8px; pointer-events: none;"></div>
                 
-                <!-- Esquinas del recuadro -->
                 <div style="position: absolute; top: 15px; left: 15px; width: 25px; height: 25px; border-top: 3px solid #48b8e9; border-left: 3px solid #48b8e9;"></div>
                 <div style="position: absolute; top: 15px; right: 15px; width: 25px; height: 25px; border-top: 3px solid #48b8e9; border-right: 3px solid #48b8e9;"></div>
                 <div style="position: absolute; bottom: 15px; left: 15px; width: 25px; height: 25px; border-bottom: 3px solid #48b8e9; border-left: 3px solid #48b8e9;"></div>
@@ -124,152 +121,179 @@ type KioskState = 'qrIdle' | 'qrValidando' | 'qrValidado' | 'esperandoIdentifica
             <canvas #ineCanvasElement hidden></canvas>
 
             <div style="display: flex; gap: 1rem; justify-content: center;">
-                <button class="btn" style="background: #334155;" (click)="cancelIdCapture()" data-testid="button-cancel-capture">
-                    Cancelar
-                </button>
-                <button class="btn" (click)="captureIdPhoto()" data-testid="button-take-photo">
+                <button class="btn" (click)="captureInePhoto()" data-testid="button-take-ine-photo">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="4"/><path d="M5 7h2a2 2 0 0 0 2-2 1 1 0 0 1 1-1h4a1 1 0 0 1 1 1 2 2 0 0 0 2 2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2"/></svg>
                     Capturar
                 </button>
             </div>
         </div>
 
-        <!-- Estado Procesando INE -->
-        <div id="s2-processing" class="container" *ngIf="currentState === 'leyendoIdentificacion'">
+        <!-- Procesando INE -->
+        <div id="ine-procesando" class="container" *ngIf="currentState === 'procesandoIne'">
             <div class="spinner-container">
                 <div class="spinner"></div>
                 <h2>Leyendo y validando identificación...</h2>
             </div>
         </div>
 
-        <!-- Estado Capturando Placa -->
-        <div id="s2-plate-capturing" class="container fade-in" *ngIf="currentState === 'capturandoPlaca'">
-            <h1 style="font-size: 1.3rem; margin-bottom: 0.5rem;">Cámara de placa vehicular</h1>
+        <!-- INE Mostrada -->
+        <div id="ine-mostrada" class="container fade-in" *ngIf="currentState === 'ineMostrada'">
+            <h1 style="font-size: 1.3rem; margin-bottom: 0.75rem; color: #22c55e;">Datos de identificación detectados</h1>
+            
+            <div class="data-card" style="background: #1e293b; border-radius: 1rem; padding: 1.5rem; max-width: 500px; margin: 0 auto 1rem;">
+                <div class="id-data-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="data-field">
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Nombre completo</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-nombre">{{ ineData?.nombreCompleto }}</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Fecha de nacimiento</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-fecha-nac">{{ ineData?.fechaNacimiento }}</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Sexo</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-sexo">{{ ineData?.sexo === 'M' ? 'Masculino' : 'Femenino' }}</span>
+                    </div>
+                    <div class="data-field">
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">CURP</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-curp">{{ ineData?.curp }}</span>
+                    </div>
+                    <div class="data-field" style="grid-column: span 2;">
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Dirección</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-direccion">{{ ineData?.direccion }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn" style="background: #334155;" (click)="retakeInePhoto()" data-testid="button-retake-ine">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    Volver a capturar
+                </button>
+                <button class="btn" (click)="saveIneAndContinue()" data-testid="button-save-ine">
+                    Guardar y continuar
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- LAYOUT 3: VALIDACIÓN DE PLACA -->
+    <!-- ============================================== -->
+    <section id="layout-placa" class="container fade-in" *ngIf="currentState === 'capturandoPlaca' || currentState === 'procesandoPlaca' || currentState === 'placaMostrada'">
+        
+        <!-- Progreso -->
+        <div class="progress-indicator" style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <div class="step completed" style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></div>
+            <div class="step completed" style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></div>
+            <div class="step active" style="width: 12px; height: 12px; border-radius: 50%; background: #0891b2;"></div>
+        </div>
+
+        <!-- Capturando Placa -->
+        <div id="placa-capturando" class="container fade-in" *ngIf="currentState === 'capturandoPlaca'">
+            <h1 style="font-size: 1.3rem; margin-bottom: 0.5rem;">Paso 2: Captura la placa vehicular</h1>
             <h2 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Posiciona tu vehículo para que la placa sea visible.</h2>
             
             <div class="plate-camera-container" style="position: relative; width: 480px; height: 300px; border-radius: 1rem; overflow: hidden; margin: 0 auto 1rem; border: 3px solid #0891b2; background: #000;">
                 <img [src]="anprStreamUrl" style="width: 100%; height: 100%; object-fit: cover;" alt="Stream ANPR" onerror="this.style.display='none'"/>
                 
-                <!-- Placeholder si no hay stream -->
                 <div *ngIf="!anprStreamUrl" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
                     <p>Conectando con cámara...</p>
                 </div>
                 
-                <!-- Recuadro de enfoque para placa -->
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 50px; border: 2px dashed rgba(8, 145, 178, 0.8); border-radius: 4px; pointer-events: none;"></div>
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: center;">
-                <button class="btn" style="background: #334155;" (click)="cancelPlateCapture()" data-testid="button-cancel-plate">
-                    Cancelar
-                </button>
-                <button class="btn" style="background: #0891b2;" (click)="capturePlatePhoto()" data-testid="button-take-plate">
+                <button class="btn" style="background: #0891b2;" (click)="capturePlatePhoto()" data-testid="button-take-plate-photo">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="4"/><path d="M5 7h2a2 2 0 0 0 2-2 1 1 0 0 1 1-1h4a1 1 0 0 1 1 1 2 2 0 0 0 2 2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2"/></svg>
                     Capturar
                 </button>
             </div>
         </div>
 
-        <!-- Estado Procesando Placa -->
-        <div id="s2-plate-processing" class="container" *ngIf="currentState === 'leyendoPlaca'">
+        <!-- Procesando Placa -->
+        <div id="placa-procesando" class="container" *ngIf="currentState === 'procesandoPlaca'">
             <div class="spinner-container">
                 <div class="spinner"></div>
                 <h2>Leyendo placa vehicular...</h2>
             </div>
         </div>
-    </section>
 
-    <!-- MODAL DE CONFIRMACIÓN DE DATOS -->
-    <div id="modal-id-data" class="modal-overlay" [class.visible]="currentState === 'identificacionMostrada'">
-        <div class="modal-content">
-            <h2 class="modal-title">Datos de identificación detectados</h2>
+        <!-- Placa Mostrada -->
+        <div id="placa-mostrada" class="container fade-in" *ngIf="currentState === 'placaMostrada'">
+            <h1 style="font-size: 1.3rem; margin-bottom: 0.75rem; color: #0891b2;">Placa vehicular detectada</h1>
             
-            <div class="modal-body">
-                <div class="id-data-grid">
-                    <div class="data-field">
-                        <span class="data-label">Nombre completo</span>
-                        <span class="data-value" data-testid="text-nombre">{{ ineData?.nombreCompleto }}</span>
-                    </div>
-                    <div class="data-field">
-                        <span class="data-label">Fecha de nacimiento</span>
-                        <span class="data-value" data-testid="text-fecha-nac">{{ ineData?.fechaNacimiento }}</span>
-                    </div>
-                    <div class="data-field">
-                        <span class="data-label">Sexo</span>
-                        <span class="data-value" data-testid="text-sexo">{{ ineData?.sexo === 'M' ? 'Masculino' : 'Femenino' }}</span>
-                    </div>
-                    <div class="data-field">
-                        <span class="data-label">CURP</span>
-                        <span class="data-value" data-testid="text-curp">{{ ineData?.curp }}</span>
-                    </div>
-                    <div class="data-field" style="grid-column: span 2;">
-                        <span class="data-label">Dirección</span>
-                        <span class="data-value" data-testid="text-direccion">{{ ineData?.direccion }}</span>
-                    </div>
+            <div class="data-card" style="background: #1e293b; border-radius: 1rem; padding: 1.5rem; max-width: 500px; margin: 0 auto 1rem;">
+                <div class="plate-display" style="text-align: center; margin-bottom: 1rem;">
+                    <span style="font-size: 2.5rem; color: #0891b2; font-weight: 700; letter-spacing: 0.1em;" data-testid="text-plate">{{ plateData?.plate }}</span>
                 </div>
-            </div>
-
-            <div class="modal-actions" style="display: flex; gap: 1rem; justify-content: center;">
-                <button class="btn" style="background: #334155;" (click)="retakeIdPhoto()" data-testid="button-retake-id">Volver a capturar</button>
-                <button class="btn" (click)="confirmIdData()" data-testid="button-confirm-id">Confirmar y continuar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE CONFIRMACIÓN DE PLACA -->
-    <div id="modal-plate-data" class="modal-overlay" [class.visible]="currentState === 'placaMostrada'">
-        <div class="modal-content">
-            <h2 class="modal-title" style="color: #0891b2;">Placa vehicular detectada</h2>
-            
-            <div class="modal-body">
-                <div class="id-data-grid">
-                    <div class="data-field" style="grid-column: span 2;">
-                        <span class="data-label">Número de placa</span>
-                        <span class="data-value" style="font-size: 2rem; color: #0891b2; font-weight: 700;" data-testid="text-plate">{{ plateData?.plate }}</span>
+                <div class="plate-data-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="data-field">
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Confianza</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-confidence">{{ (plateData?.confidence || 0) * 100 | number:'1.0-0' }}%</span>
                     </div>
                     <div class="data-field">
-                        <span class="data-label">Confianza</span>
-                        <span class="data-value" data-testid="text-confidence">{{ (plateData?.confidence || 0) * 100 | number:'1.0-0' }}%</span>
-                    </div>
-                    <div class="data-field">
-                        <span class="data-label">Región</span>
-                        <span class="data-value" data-testid="text-region">{{ plateData?.region || 'México' }}</span>
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Región</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-region">{{ plateData?.region || 'México' }}</span>
                     </div>
                     <div class="data-field" *ngIf="plateData?.vehicleType">
-                        <span class="data-label">Tipo de vehículo</span>
-                        <span class="data-value" data-testid="text-vehicle-type">{{ plateData?.vehicleType }}</span>
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Tipo de vehículo</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-vehicle-type">{{ plateData?.vehicleType }}</span>
                     </div>
                     <div class="data-field" *ngIf="plateData?.color">
-                        <span class="data-label">Color</span>
-                        <span class="data-value" data-testid="text-vehicle-color">{{ plateData?.color }}</span>
+                        <span class="data-label" style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Color</span>
+                        <span class="data-value" style="font-size: 1rem; color: #e2e8f0; display: block;" data-testid="text-vehicle-color">{{ plateData?.color }}</span>
                     </div>
                 </div>
             </div>
 
-            <div class="modal-actions" style="display: flex; gap: 1rem; justify-content: center;">
-                <button class="btn" style="background: #334155;" (click)="retakePlatePhoto()" data-testid="button-retake-plate">Volver a capturar</button>
-                <button class="btn" style="background: #0891b2;" (click)="confirmPlateData()" data-testid="button-confirm-plate">Confirmar y continuar</button>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn" style="background: #334155;" (click)="retakePlatePhoto()" data-testid="button-retake-plate">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    Volver a capturar
+                </button>
+                <button class="btn" style="background: #22c55e;" (click)="finishAndAuthorize()" data-testid="button-finish">
+                    Finalizar
+                </button>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- PANTALLA 3: ACCESO AUTORIZADO -->
-    <section id="screen-3" class="container fade-in" *ngIf="currentState === 'accesoAutorizado'">
-        <div class="screen-3-content">
-            <div class="success-icon">✓</div>
-            <h1>Acceso autorizado</h1>
-            <p>Datos de la identificación validados con éxito.</p>
-            <p class="main-msg" style="font-weight: 600; color: #22c55e; margin-top: 0.5rem;">Ya puedes pasar.</p>
+    <!-- ============================================== -->
+    <!-- LAYOUT 4: ACCESO AUTORIZADO -->
+    <!-- ============================================== -->
+    <section id="layout-success" class="container fade-in" *ngIf="currentState === 'accesoAutorizado'">
+        <div class="progress-indicator" style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <div class="step completed" style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></div>
+            <div class="step completed" style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></div>
+            <div class="step completed" style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></div>
+        </div>
+
+        <div class="screen-success-content">
+            <div class="success-icon" style="width: 80px; height: 80px; font-size: 2.5rem; margin: 0 auto 1rem; background: rgba(34,197,94,0.15); color: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✓</div>
+            <h1 style="color: #22c55e;">Acceso autorizado</h1>
+            <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Todos los datos han sido validados correctamente.</p>
+            <p class="main-msg" style="font-weight: 600; color: #22c55e; font-size: 1.3rem; margin-top: 0.5rem;">¡Ya puedes pasar!</p>
             
-            <div class="reminders-list">
+            <div class="summary-card" style="background: #1e293b; border-radius: 1rem; padding: 1rem; max-width: 400px; margin: 1.5rem auto 1rem; text-align: left;">
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;"><strong style="color: #e2e8f0;">Visitante:</strong> {{ visitorData?.nombre }}</p>
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;"><strong style="color: #e2e8f0;">Destino:</strong> {{ visitorData?.unidadDestino }}</p>
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;" *ngIf="ineData?.curp"><strong style="color: #e2e8f0;">CURP:</strong> {{ ineData?.curp }}</p>
+                <p style="font-size: 0.85rem; color: #94a3b8;" *ngIf="plateData?.plate"><strong style="color: #e2e8f0;">Placa:</strong> {{ plateData?.plate }}</p>
+            </div>
+
+            <div class="reminders-list" style="max-width: 400px; margin: 0 auto; text-align: left; font-size: 0.85rem; color: #94a3b8;">
                 <p>• Respeta los límites de velocidad dentro del residencial.</p>
                 <p>• Respeta el reglamento y las indicaciones del personal de seguridad.</p>
             </div>
         </div>
     </section>
 
+    <!-- ============================================== -->
     <!-- PANTALLA ERROR -->
-    <section id="screen-error" class="container fade-in" *ngIf="currentState === 'error'">
+    <!-- ============================================== -->
+    <section id="layout-error" class="container fade-in" *ngIf="currentState === 'error'">
         <div class="welcome-card" style="border-color: #ef4444;">
             <div style="display: flex; justify-content: center;">
                 <div class="success-icon" style="width: 60px; height: 60px; font-size: 2rem; margin-bottom: 0.75rem; background: rgba(239,68,68,0.1); color: #ef4444;">✕</div>
@@ -354,20 +378,18 @@ export class KioskComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopCamera();
+    this.stopIneCamera();
   }
 
   async startCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
 
     try {
-      // Primero obtener permiso con cualquier cámara para poder enumerar
       const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
       tempStream.getTracks().forEach(t => t.stop());
       
-      // Ahora enumerar cámaras (ya tenemos permisos, los labels estarán disponibles)
       await this.enumerateCameras();
       
-      // Buscar la cámara QR configurada
       const qrCameraId = this.cameraConfig?.qrCamera ? this.findCameraByName(this.cameraConfig.qrCamera) : undefined;
       
       const constraints: MediaStreamConstraints = {
@@ -438,6 +460,8 @@ export class KioskComponent implements OnInit, OnDestroy {
 
   async onQrDetected(qrData: string) {
     this.scanning = false;
+    this.stopCamera();
+    this.qrCameraActive = false;
     this.currentState = 'qrValidando';
     
     this.accessService.validateQr(qrData).subscribe({
@@ -446,12 +470,6 @@ export class KioskComponent implements OnInit, OnDestroy {
           if (response.success && response.data) {
             this.visitorData = response.data;
             this.currentState = 'qrValidado';
-            
-            setTimeout(() => {
-              this.ngZone.run(() => {
-                this.currentState = 'esperandoIdentificacion';
-              });
-            }, 3000);
           } else {
             this.errorMessage = response.message || 'Código QR no válido';
             this.currentState = 'error';
@@ -467,14 +485,9 @@ export class KioskComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
-  simulateQrScan() {
-    this.onQrDetected("DEMO_QR_CODE");
-  }
 
-  startIdCapture() {
-    this.currentState = 'capturandoIdentificacion';
-    
+  goToIneCapture() {
+    this.currentState = 'capturandoIne';
     setTimeout(() => {
       this.startIneCamera();
     }, 100);
@@ -499,7 +512,6 @@ export class KioskComponent implements OnInit, OnDestroy {
       const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
       this.ineStream = stream;
       
-      // Aplicar configuración de enfoque si está disponible
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         try {
@@ -509,12 +521,6 @@ export class KioskComponent implements OnInit, OnDestroy {
           if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
             advancedConstraints.focusMode = 'continuous';
             console.log('[Kiosk] Enfoque continuo activado');
-          } else if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
-            advancedConstraints.focusMode = 'manual';
-            if (capabilities.focusDistance && capabilities.focusDistance.min !== undefined) {
-              advancedConstraints.focusDistance = capabilities.focusDistance.min;
-              console.log('[Kiosk] Enfoque manual con distancia mínima:', capabilities.focusDistance.min);
-            }
           }
           
           if (Object.keys(advancedConstraints).length > 0) {
@@ -549,36 +555,83 @@ export class KioskComponent implements OnInit, OnDestroy {
     }
   }
 
-  cancelIdCapture() {
+  captureInePhoto() {
+    if (!this.ineVideoElement || !this.ineCanvasElement) {
+      this.errorMessage = 'Error: Cámara no disponible';
+      this.currentState = 'error';
+      return;
+    }
+
+    const video = this.ineVideoElement.nativeElement;
+    const canvas = this.ineCanvasElement.nativeElement;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      this.errorMessage = 'Error al capturar imagen';
+      this.currentState = 'error';
+      return;
+    }
+
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    
+    const paddingPercent = 0.04;
+    const cropX = Math.floor(videoWidth * paddingPercent);
+    const cropY = Math.floor(videoHeight * paddingPercent);
+    const cropWidth = Math.floor(videoWidth * (1 - 2 * paddingPercent));
+    const cropHeight = Math.floor(videoHeight * (1 - 2 * paddingPercent));
+    
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    
+    context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    
+    console.log('[Kiosk] Captura INE - Resolución original:', videoWidth, 'x', videoHeight);
+    console.log('[Kiosk] Captura INE - Área recortada:', cropWidth, 'x', cropHeight);
+
+    const imageBase64 = canvas.toDataURL('image/jpeg', 0.95);
+    
     this.stopIneCamera();
-    this.currentState = 'esperandoIdentificacion';
+    this.currentState = 'procesandoIne';
+
+    this.accessService.processIne(imageBase64).subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          if (response.success && response.data) {
+            this.ineData = response.data;
+            this.currentState = 'ineMostrada';
+          } else {
+            this.errorMessage = response.message || 'Error procesando identificación';
+            this.currentState = 'error';
+          }
+        });
+      },
+      error: (err) => {
+        this.ngZone.run(() => {
+          console.error('Error processing INE:', err);
+          this.errorMessage = err.message || 'Error al procesar identificación';
+          this.currentState = 'error';
+        });
+      }
+    });
   }
 
-  retakeIdPhoto() {
+  retakeInePhoto() {
     this.ineData = null;
-    this.startIdCapture();
+    this.currentState = 'capturandoIne';
+    setTimeout(() => {
+      this.startIneCamera();
+    }, 100);
   }
 
-  // ========== MÉTODOS PARA CAPTURA DE PLACA ==========
-
-  startPlateCapture() {
+  saveIneAndContinue() {
     this.currentState = 'capturandoPlaca';
     this.anprStreamUrl = this.accessService.getAnprStreamUrl();
   }
 
-  cancelPlateCapture() {
-    this.anprStreamUrl = '';
-    this.currentState = 'esperandoIdentificacion';
-  }
-
-  retakePlatePhoto() {
-    this.plateData = null;
-    this.startPlateCapture();
-  }
-
   capturePlatePhoto() {
     this.anprStreamUrl = '';
-    this.currentState = 'leyendoPlaca';
+    this.currentState = 'procesandoPlaca';
 
     this.accessService.captureAnpr().subscribe({
       next: (response) => {
@@ -602,14 +655,20 @@ export class KioskComponent implements OnInit, OnDestroy {
     });
   }
 
-  confirmPlateData() {
+  retakePlatePhoto() {
+    this.plateData = null;
+    this.currentState = 'capturandoPlaca';
+    this.anprStreamUrl = this.accessService.getAnprStreamUrl();
+  }
+
+  finishAndAuthorize() {
     if (!this.plateData?.plate) {
       this.errorMessage = 'No se detectó placa válida';
       this.currentState = 'error';
       return;
     }
 
-    this.accessService.openGate(this.plateData.plate, 'GATE-VEHICLE').subscribe({
+    this.accessService.openGate(this.ineData?.curp || this.plateData.plate, 'GATE-VEHICLE').subscribe({
       next: (response) => {
         this.ngZone.run(() => {
           if (response.success) {
@@ -619,106 +678,7 @@ export class KioskComponent implements OnInit, OnDestroy {
               this.ngZone.run(() => {
                 this.resetFlow();
               });
-            }, 7000);
-          } else {
-            this.errorMessage = response.message || 'Error al abrir puerta';
-            this.currentState = 'error';
-          }
-        });
-      },
-      error: (err) => {
-        this.ngZone.run(() => {
-          console.error('Error opening gate:', err);
-          this.errorMessage = err.message || 'Error al abrir puerta';
-          this.currentState = 'error';
-        });
-      }
-    });
-  }
-
-  captureIdPhoto() {
-    if (!this.ineVideoElement || !this.ineCanvasElement) {
-      this.errorMessage = 'Error: Cámara no disponible';
-      this.currentState = 'error';
-      return;
-    }
-
-    const video = this.ineVideoElement.nativeElement;
-    const canvas = this.ineCanvasElement.nativeElement;
-    const context = canvas.getContext('2d');
-
-    if (!context) {
-      this.errorMessage = 'Error al capturar imagen';
-      this.currentState = 'error';
-      return;
-    }
-
-    // Calcular el área de recorte para la INE (marco central con padding)
-    const videoWidth = video.videoWidth;
-    const videoHeight = video.videoHeight;
-    
-    // El marco visual tiene un padding de ~4% en cada lado (20px de 480px = ~4%)
-    const paddingPercent = 0.04;
-    const cropX = Math.floor(videoWidth * paddingPercent);
-    const cropY = Math.floor(videoHeight * paddingPercent);
-    const cropWidth = Math.floor(videoWidth * (1 - 2 * paddingPercent));
-    const cropHeight = Math.floor(videoHeight * (1 - 2 * paddingPercent));
-    
-    // Canvas con la resolución del área recortada (máxima calidad)
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
-    
-    // Dibujar solo el área recortada
-    context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-    
-    console.log('[Kiosk] Captura INE - Resolución original:', videoWidth, 'x', videoHeight);
-    console.log('[Kiosk] Captura INE - Área recortada:', cropWidth, 'x', cropHeight);
-
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.95);
-    
-    this.stopIneCamera();
-    this.currentState = 'leyendoIdentificacion';
-
-    this.accessService.processIne(imageBase64).subscribe({
-      next: (response) => {
-        this.ngZone.run(() => {
-          if (response.success && response.data) {
-            this.ineData = response.data;
-            this.currentState = 'identificacionMostrada';
-          } else {
-            this.errorMessage = response.message || 'Error procesando identificación';
-            this.currentState = 'error';
-          }
-        });
-      },
-      error: (err) => {
-        this.ngZone.run(() => {
-          console.error('Error processing INE:', err);
-          this.errorMessage = err.message || 'Error al procesar identificación';
-          this.currentState = 'error';
-        });
-      }
-    });
-  }
-
-  confirmIdData() {
-    if (!this.ineData?.curp) {
-      this.errorMessage = 'No se encontró CURP válido';
-      this.currentState = 'error';
-      return;
-    }
-
-    this.accessService.openGate(this.ineData.curp, 'GATE-MAIN').subscribe({
-      next: (response) => {
-        this.ngZone.run(() => {
-          if (response.success) {
-            this.currentState = 'accesoAutorizado';
-            
-            setTimeout(() => {
-              this.ngZone.run(() => {
-                this.resetFlow();
-              });
-            }, 7000);
+            }, 10000);
           } else {
             this.errorMessage = response.message || 'Error al abrir puerta';
             this.currentState = 'error';
